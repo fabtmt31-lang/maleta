@@ -1,7 +1,7 @@
 """Ecran du kiosque (ce qui s'affiche en plein ecran sur la borne) + routes
 de test pour developper sans lecteur NFC ni manette branches."""
 
-from flask import Blueprint, render_template, jsonify, current_app, abort, url_for
+from flask import Blueprint, render_template, jsonify, current_app, abort, request, url_for
 
 import config
 from managers import object_manager, settings_manager
@@ -116,4 +116,20 @@ def demo_place(object_id):
     if not tags:
         return jsonify({"error": "objet introuvable"}), 404
     tag_reader.simulate_uid(tags[0]["uid"])
+    return jsonify({"ok": True})
+
+
+@kiosk_bp.route("/demo/pointer", methods=["POST"])
+def demo_pointer():
+    """v1.2 : clic souris sur une tuile, une carte ou une reponse du Duèl
+    (voir GameController.on_pointer et static/js/kiosk-demo.js)."""
+    if not config.DEMO_MODE:
+        abort(404)
+    data = request.get_json(silent=True) or {}
+    index = data.get("index")
+    current_app.extensions["game_controller"].on_pointer(
+        str(data.get("kind", "")),
+        index=index if isinstance(index, int) else None,
+        choice=data.get("choice"),
+    )
     return jsonify({"ok": True})

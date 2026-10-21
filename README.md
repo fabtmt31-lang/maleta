@@ -9,7 +9,8 @@ Borne ludique pour faire découvrir l'occitan et les écoles Calandreta
 | `desktop/` | Le lanceur de la **version démo** : la même application dans une simple fenêtre, sur n'importe quel PC Windows ou Linux. |
 | `packaging/` | Construction de l'exécutable Windows (PyInstaller) et du paquet `.deb` Linux. |
 | `.github/workflows/` | Construction automatique des deux, publiés dans les **Releases** du dépôt. |
-| `tests/` | Tests automatiques de l'export / import du contenu. |
+| `tests/` | Tests automatiques (export / import, clavier et souris de la démo). |
+| `docs/` | [Ce qu'il faut ajouter à la version de prod](docs/import-contenu-version-prod.md) pour importer un export de la démo (+ patch pour la v1.11). |
 
 ## Version démo
 
@@ -30,12 +31,30 @@ Différences avec la borne :
 
 - **Une simple fenêtre** (plein écran avec F11, menu « Maleta » pour
   l'administration, l'export et le dossier des données).
-- **Clavier au lieu de la manette**, assigné d'office : flèches, Entrée
-  (valider), Échap (retour), 1 / 2 / 3 (réponses), S / D et K / L (Duèl,
-  joueurs 1 et 2), P (diaporama). Modifiable dans Configuration.
+- **Entièrement au clavier et à la souris, aucune manette à configurer** :
+  chaque action a une touche par défaut.
+
+  | Touche | Action |
+  |---|---|
+  | Flèches | se déplacer (menu, cartes Memòria) |
+  | Entrée | valider / retourner une carte |
+  | Échap | retour au menu |
+  | 1 / 2 / 3 | réponses (Ven de l'occitan ?, Quiz) |
+  | S / D | Duèl, joueur 1 : réponse A / B |
+  | K / L | Duèl, joueur 2 : réponse A / B |
+  | P | diaporama |
+  | F2 | poser un objet (NFC simulé) |
+  | F11 | plein écran |
+  | Ctrl+Alt+A | administration |
+
+  À la souris : clic sur une tuile, une carte ou une réponse pour la
+  choisir ; clic sur un écran sans choix (accueil, diaporama, fin de partie)
+  pour continuer ; **clic droit = retour au menu** ; au Duèl, le 1er clic
+  répond pour le joueur 1, le 2e pour le joueur 2. Touches modifiables dans
+  Configuration (bouton « Remettre les touches par défaut de la démo »).
 - **Pas de lecteur NFC** : le bouton « NFC · F2 » en bas à gauche du kiosque
-  ouvre la liste des objets ; cliquer sur un objet revient à le poser sur le
-  lecteur (Descobèrta, Tròba l'objècte).
+  ouvre la liste des objets ; cliquer sur un objet (ou flèches + Entrée)
+  revient à le poser sur le lecteur (Descobèrta, Tròba l'objècte).
 - Administration : Ctrl+Alt+A ou l'icône engrenage, **code 1234** (rappelé
   sur l'écran de connexion tant qu'il n'est pas changé).
 - Les données (base + médias) sont rangées dans le dossier utilisateur :
@@ -53,7 +72,10 @@ fichier :
 1. Dans la démo : **Admin > Exportar / Importar > Telecargar l'export** →
    un fichier `maleta-demo-contenu-AAAAMMJJ-HHMM.zip`.
 2. Sur la borne (version standard 1.2 ou plus) : **Admin > Exportar /
-   Importar > Importar**, choisir ce .zip tel quel.
+   Importar > Importar**, choisir ce .zip tel quel. Borne restée en v1.11 :
+   voir [`docs/import-contenu-version-prod.md`](docs/import-contenu-version-prod.md)
+   (2 fichiers à ajouter pour un import en ligne de commande, ou un patch
+   pour la page d'admin).
    - « Ajouter » garde le contenu déjà présent et ignore les doublons ;
      « Remplacer » efface d'abord les sections cochées.
    - Les objets venant de la démo n'ont pas de tag NFC : les associer depuis

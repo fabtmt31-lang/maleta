@@ -1,0 +1,819 @@
+diff -ruN a/blueprints/admin.py b/blueprints/admin.py
+--- a/blueprints/admin.py
++++ b/blueprints/admin.py
+@@ -7,17 +7,18 @@
+ gabarit dans une etape ulterieure.
+ """
+ 
++import io
+ import time
+ from functools import wraps
+ 
+ from flask import (
+     Blueprint, render_template, request, redirect, url_for, session, flash,
+-    current_app, jsonify,
++    current_app, jsonify, send_file,
+ )
+ 
+ import config
+ from managers import (
+-    duel_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
++    content_transfer, duel_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
+     vertadier_manager, village_manager,
+ )
+ from managers.tag_reader import SimulatedTagReader
+@@ -1155,3 +1156,68 @@
+         settings_manager.unassign_keyboard_key(action)
+         flash("Touche clavier retirée")
+     return redirect(url_for("admin.config_home"))
++
++
++# --- Exportar / Importar (v1.2) ----------------------------------------------
++# Extraire le contenu saisi a la main (typiquement dans la version de demo)
++# pour le reimplanter dans une autre installation (typiquement la borne).
++# Voir managers/content_transfer.py pour le format.
++
++@admin_bp.route("/transfer")
++@login_required
++def transfer():
++    current = content_transfer.summarize(content_transfer.build_counts())
++    return render_template(
++        "admin/transfer.html",
++        sections=content_transfer.SECTIONS,
++        current=current,
++        report=None,
++    )
++
++
++@admin_bp.route("/transfer/export")
++@login_required
++def transfer_export():
++    filename, payload = content_transfer.build_export(
++        include_media=request.args.get("media", "1") == "1",
++        include_settings=request.args.get("settings", "1") == "1",
++    )
++    return send_file(
++        io.BytesIO(payload), mimetype="application/zip",
++        as_attachment=True, download_name=filename,
++    )
++
++
++@admin_bp.route("/transfer/import", methods=["POST"])
++@login_required
++def transfer_import():
++    upload = request.files.get("bundle")
++    if not upload or not upload.filename:
++        flash("Choisis d'abord un fichier d'export (.zip).")
++        return redirect(url_for("admin.transfer"))
++    try:
++        data, archive = content_transfer.read_bundle(upload)
++        sections = [s["name"] for s in content_transfer.SECTIONS if request.form.get(f"section_{s['name']}")]
++        if not sections and not request.form.get("settings"):
++            flash("Coche au moins une section à importer.")
++            return redirect(url_for("admin.transfer"))
++        report = content_transfer.import_bundle(
++            data, archive, sections,
++            mode=request.form.get("mode", "merge"),
++            import_settings=bool(request.form.get("settings")),
++            import_tags=bool(request.form.get("tags")),
++        )
++    except content_transfer.ImportError_ as exc:
++        flash(str(exc))
++        return redirect(url_for("admin.transfer"))
++    return render_template(
++        "admin/transfer.html",
++        sections=content_transfer.SECTIONS,
++        current=content_transfer.summarize(content_transfer.build_counts()),
++        report=report,
++        bundle_info={
++            "app_version": data.get("app_version"),
++            "source": data.get("source"),
++            "exported_at": data.get("exported_at"),
++        },
++    )
+diff -ruN a/importer_contenu.py b/importer_contenu.py
+--- a/importer_contenu.py
++++ b/importer_contenu.py
+@@ -0,0 +1,101 @@
++"""Importe sur la borne un export de contenu (.zip) fait depuis la version de
++demo (ou une autre borne) -- en ligne de commande, sans passer par l'admin.
++
++Meme import que la page Admin > Exportar / Importar (v1.2), voir
++managers/content_transfer.py. Utile aussi sur une borne restee en v1.11 :
++il suffit d'y ajouter ce fichier et managers/content_transfer.py (detail
++dans docs/import-contenu-version-prod.md a la racine du depot).
++
++Usage, sur la borne (en tant qu'utilisateur "maleta", pour que les fichiers
++medias copies lui appartiennent) :
++
++    sudo -u maleta /opt/maleta-occitana/.venv/bin/python \\
++        /opt/maleta-occitana/importer_contenu.py /tmp/maleta-demo-contenu-XXXX.zip
++
++Options :
++    --apercu       affiche le contenu du fichier sans rien importer
++    --remplacer    efface d'abord le contenu des sections importees
++                   (par defaut : ajoute, doublons ignores)
++    --sections     liste separee par des virgules (par defaut : toutes)
++                   objects,vertadier_words,duel_questions,quiz_questions,villages,media_items
++    --reglages     importe aussi l'apparence et les textes de la borne
++    --sans-tags    n'importe pas les tags NFC reels associes aux objets
++
++Pas besoin d'arreter le service : le kiosque relit la base a chaque partie.
++Recharger l'ecran (F5) si --reglages a ete utilise.
++"""
++
++import argparse
++import os
++import sys
++
++sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++
++from flask import Flask  # noqa: E402
++
++from db.database import close_db, init_db  # noqa: E402
++from managers import content_transfer  # noqa: E402
++
++
++class _File:
++    """Interface minimale attendue par content_transfer.read_bundle()."""
++
++    def __init__(self, path):
++        self.path = path
++
++    def read(self):
++        with open(self.path, "rb") as f:
++            return f.read()
++
++
++def main():
++    parser = argparse.ArgumentParser(description="Importe un export de contenu de la Maleta Occitana.")
++    parser.add_argument("fichier", help="export .zip (ou .json)")
++    parser.add_argument("--apercu", action="store_true", help="affiche le contenu sans rien importer")
++    parser.add_argument("--remplacer", action="store_true", help="efface d'abord les sections importees")
++    parser.add_argument("--sections", default="", help="sections a importer, separees par des virgules")
++    parser.add_argument("--reglages", action="store_true", help="importe aussi apparence et textes")
++    parser.add_argument("--sans-tags", action="store_true", help="n'importe pas les tags NFC")
++    args = parser.parse_args()
++
++    all_sections = [s["name"] for s in content_transfer.SECTIONS]
++    sections = [s.strip() for s in args.sections.split(",") if s.strip()] or all_sections
++    unknown = [s for s in sections if s not in all_sections]
++    if unknown:
++        parser.error(f"section(s) inconnue(s) : {', '.join(unknown)} (possibles : {', '.join(all_sections)})")
++
++    app = Flask(__name__)
++    app.teardown_appcontext(close_db)
++    init_db()
++    with app.app_context():
++        try:
++            data, archive = content_transfer.read_bundle(_File(args.fichier))
++        except (OSError, content_transfer.ImportError_) as exc:
++            print(f"Erreur : {exc}", file=sys.stderr)
++            return 1
++
++        print(f"Export de la version {data.get('app_version', '?')} ({data.get('source', '?')}), "
++              f"du {data.get('exported_at', '?')}")
++        for entry in content_transfer.summarize(data):
++            print(f"  - {entry['label']} : {entry['count']}")
++        if args.apercu:
++            return 0
++
++        report = content_transfer.import_bundle(
++            data, archive, sections,
++            mode="replace" if args.remplacer else "merge",
++            import_settings=args.reglages,
++            import_tags=not args.sans_tags,
++        )
++
++    print("\nImport termine :")
++    for result in report["sections"].values():
++        print(f"  - {result['label']} : {result['added']} ajoute(s), {result['skipped']} ignore(s)")
++    print(f"  - {report['files']} fichier(s) media copie(s)")
++    for warning in report["warnings"]:
++        print(f"  ! {warning}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff -ruN a/managers/content_transfer.py b/managers/content_transfer.py
+--- a/managers/content_transfer.py
++++ b/managers/content_transfer.py
+@@ -0,0 +1,448 @@
++"""Export / import du contenu saisi dans l'admin (v1.2).
++
++Demande par Fabien avec la version de demonstration : le contenu saisi a la
++main (objets, questions des jeux, vilatges, diaporama, textes de la borne)
++doit pouvoir etre extrait d'une installation -- typiquement la demo sur un
++PC de bureau -- puis reimplante dans une autre, typiquement la borne
++(version standard). Meme code des deux cotes : la page Admin > Exportar /
++Importar existe dans les deux versions.
++
++Format : une archive .zip qui contient
++- `maleta-contenu.json` : tout le contenu, seul fichier lu a l'import ;
++- `media/...` : les images/sons/photos/videos references par ce contenu,
++  ranges comme dans le dossier media/ de l'appli ;
++- `tableur/*.csv` : le meme contenu en tableaux lisibles dans un tableur
++  (relecture, verification des sources) -- jamais lus a l'import.
++Un fichier .json seul (sans medias) est aussi accepte a l'import.
++
++Ne sont JAMAIS exportes : le code PIN admin, les mappings manette/clavier
++(propres a chaque machine) et les tags NFC fictifs (demo, "Simuler un scan")
++qui ne correspondent a aucun tag physique.
++
++Module volontairement autonome (ne depend que de config, db.database et
++upload_utils, presents depuis la v1.03) : il peut etre depose tel quel sur
++une borne plus ancienne, voir docs/import-contenu-version-prod.md.
++"""
++
++import csv
++import datetime
++import hashlib
++import io
++import json
++import os
++import zipfile
++
++import config
++from db.database import get_db
++from managers.upload_utils import safe_upload_name
++
++# Tags NFC fictifs (memes prefixes que object_manager, repris ici pour que ce
++# module reste autonome) : tags simules de la demo et du bouton "Simuler un
++# scan" de l'admin. Jamais exportes ni importes.
++FAKE_TAG_PREFIXES = ("DEMO-", "SIMU-")
++
++
++def _is_fake_tag(uid):
++    return str(uid).startswith(FAKE_TAG_PREFIXES)
++
++
++def _demo_mode():
++    return getattr(config, "DEMO_MODE", False)
++
++FORMAT_NAME = "maleta-occitana-contenu"
++FORMAT_VERSION = 1
++JSON_NAME = "maleta-contenu.json"
++
++# Dossiers medias : cle -> (sous-dossier dans l'archive, dossier local, extensions)
++MEDIA_KINDS = {
++    "object_image": ("media/objects/images", lambda: config.OBJECT_IMAGES_DIR, config.ALLOWED_IMAGE_EXTENSIONS),
++    "object_audio": ("media/objects/audio", lambda: config.OBJECT_AUDIO_DIR, config.ALLOWED_AUDIO_EXTENSIONS),
++    "library": (
++        "media/library", lambda: config.MEDIA_LIBRARY_DIR,
++        config.ALLOWED_MEDIA_IMAGE_EXTENSIONS | config.ALLOWED_MEDIA_VIDEO_EXTENSIONS,
++    ),
++    "branding": ("media/branding", lambda: config.BRANDING_DIR, config.ALLOWED_BRANDING_EXTENSIONS),
++}
++
++# Une section par table de contenu. `fields` : colonnes exportees (hors id,
++# created_at) ; `required` : champs texte obligatoires ; `key` : champs qui
++# identifient un doublon en mode "ajouter" ; `files` : champ -> type de media.
++SECTIONS = [
++    {
++        "name": "objects", "table": "objects", "label": "Objèctes",
++        "fields": ["name_oc", "name_fr", "category", "image_filename", "audio_filename", "active", "sort_order"],
++        "required": ["name_oc", "name_fr"],
++        "key": ["name_oc", "name_fr"],
++        "files": {"image_filename": "object_image", "audio_filename": "object_audio"},
++    },
++    {
++        "name": "vertadier_words", "table": "vertadier_words", "label": "Ven de l'occitan ?",
++        "fields": ["word_fr", "is_occitan", "explanation", "source", "active", "sort_order"],
++        "required": ["word_fr"],
++        "key": ["word_fr"],
++        "files": {},
++    },
++    {
++        "name": "duel_questions", "table": "duel_questions", "label": "Duèl Occitan",
++        "fields": ["question_fr", "choice_a", "choice_b", "correct_choice", "explanation", "source", "active", "sort_order"],
++        "required": ["question_fr", "choice_a", "choice_b", "correct_choice"],
++        "key": ["question_fr"],
++        "files": {},
++        "choices": ("a", "b"),
++    },
++    {
++        "name": "quiz_questions", "table": "quiz_questions", "label": "Quiz Calandreta",
++        "fields": ["question_fr", "choice_a", "choice_b", "choice_c", "correct_choice", "explanation", "source", "active", "sort_order"],
++        "required": ["question_fr", "choice_a", "choice_b", "choice_c", "correct_choice"],
++        "key": ["question_fr"],
++        "files": {},
++        "choices": ("a", "b", "c"),
++    },
++    {
++        "name": "villages", "table": "villages", "label": "Vilatges (Memòria)",
++        "fields": ["name_fr", "name_oc", "source", "active", "sort_order"],
++        "required": ["name_fr", "name_oc"],
++        "key": ["name_fr", "name_oc"],
++        "files": {},
++    },
++    {
++        "name": "media_items", "table": "media_items", "label": "Fotos & vidèos",
++        "fields": ["filename", "media_type", "caption", "display_seconds", "active", "sort_order"],
++        "required": ["filename", "media_type"],
++        "key": ["filename"],
++        "files": {"filename": "library"},
++    },
++]
++SECTIONS_BY_NAME = {s["name"]: s for s in SECTIONS}
++
++# Reglages exportables (Configuration) : apparence et textes de la borne.
++# Jamais le PIN ni les mappings manette/clavier.
++SETTINGS_KEYS = ["theme", "kiosk_texts", "action_label_overrides", "logo_filename", "crotz_filename"]
++SETTINGS_FILES = {"logo_filename": "branding", "crotz_filename": "branding"}
++
++
++class ImportError_(ValueError):
++    """Archive illisible ou contenu invalide (message affiche tel quel)."""
++
++
++# --- Export ----------------------------------------------------------------
++
++def build_export(include_media=True, include_settings=True):
++    """Renvoie (nom_de_fichier, octets_du_zip)."""
++    db = get_db()
++    data = {
++        "format": FORMAT_NAME,
++        "format_version": FORMAT_VERSION,
++        "app_version": config.APP_VERSION,
++        "exported_at": datetime.datetime.now().isoformat(timespec="seconds"),
++        "source": "demo" if _demo_mode() else "borne",
++    }
++    files = set()  # (kind, filename)
++
++    for section in SECTIONS:
++        rows = db.execute(
++            f"SELECT id, {', '.join(section['fields'])} FROM {section['table']} ORDER BY sort_order, id"
++        ).fetchall()
++        items = []
++        for row in rows:
++            item = {field: row[field] for field in section["fields"]}
++            for field, kind in section["files"].items():
++                if item.get(field):
++                    files.add((kind, item[field]))
++            if section["name"] == "objects":
++                item["tags"] = [
++                    t["uid"] for t in db.execute("SELECT uid FROM tags WHERE object_id = ?", (row["id"],))
++                    if not _is_fake_tag(t["uid"])
++                ]
++            items.append(item)
++        data[section["name"]] = items
++
++    if include_settings:
++        settings = {}
++        for key in SETTINGS_KEYS:
++            row = db.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
++            if row is not None and row["value"] not in (None, ""):
++                settings[key] = row["value"]
++                if key in SETTINGS_FILES:
++                    files.add((SETTINGS_FILES[key], row["value"]))
++        data["settings"] = settings
++
++    buf = io.BytesIO()
++    missing = []
++    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
++        if include_media:
++            for kind, filename in sorted(files):
++                archive_dir, get_dir, _ = MEDIA_KINDS[kind]
++                path = os.path.join(get_dir(), os.path.basename(filename))
++                if os.path.isfile(path):
++                    zf.write(path, f"{archive_dir}/{os.path.basename(filename)}")
++                else:
++                    missing.append(f"{archive_dir}/{filename}")
++        data["media_included"] = bool(include_media)
++        data["missing_media"] = missing
++        zf.writestr(JSON_NAME, json.dumps(data, ensure_ascii=False, indent=2))
++        for section in SECTIONS:
++            zf.writestr(f"tableur/{section['name']}.csv", _to_csv(section, data[section["name"]]))
++        zf.writestr("LISEZMOI.txt", _readme(data))
++
++    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
++    prefix = "maleta-demo-contenu" if _demo_mode() else "maleta-contenu"
++    return f"{prefix}-{stamp}.zip", buf.getvalue()
++
++
++def _to_csv(section, items):
++    """CSV pour tableur : point-virgule + BOM UTF-8 (lu correctement par
++    Excel/LibreOffice en francais, accents occitans compris)."""
++    out = io.StringIO()
++    columns = section["fields"] + (["tags"] if section["name"] == "objects" else [])
++    writer = csv.writer(out, delimiter=";")
++    writer.writerow(columns)
++    for item in items:
++        row = []
++        for col in columns:
++            value = item.get(col)
++            if isinstance(value, list):
++                value = " ".join(value)
++            row.append("" if value is None else value)
++        writer.writerow(row)
++    return "﻿" + out.getvalue()
++
++
++def _readme(data):
++    counts = "\n".join(f"  - {s['label']} : {len(data[s['name']])}" for s in SECTIONS)
++    return (
++        "La Maleta Occitana - export du contenu\n"
++        f"Version de l'appli : {data['app_version']} ({data['source']})\n"
++        f"Date : {data['exported_at']}\n\n"
++        f"Contenu :\n{counts}\n\n"
++        "Pour le reimplanter : Admin > Exportar / Importar > Importar, puis\n"
++        "choisir ce fichier .zip tel quel (sans le decompresser).\n\n"
++        f"{JSON_NAME} est le seul fichier lu a l'import. Le dossier tableur/\n"
++        "contient le meme contenu en CSV, pour relecture dans un tableur.\n"
++    )
++
++
++# --- Import ----------------------------------------------------------------
++
++def read_bundle(file_storage):
++    """Lit un .zip (ou un .json) envoye depuis la page d'import. Renvoie
++    (data, zipfile_ou_None). Leve ImportError_ si illisible."""
++    raw = file_storage.read()
++    if not raw:
++        raise ImportError_("Fichier vide.")
++    archive = None
++    if zipfile.is_zipfile(io.BytesIO(raw)):
++        archive = zipfile.ZipFile(io.BytesIO(raw))
++        try:
++            payload = archive.read(JSON_NAME)
++        except KeyError:
++            raise ImportError_(f"Cette archive ne contient pas de {JSON_NAME} : ce n'est pas un export de la Maleta.")
++    else:
++        payload = raw
++    try:
++        data = json.loads(payload.decode("utf-8-sig"))
++    except (UnicodeDecodeError, ValueError):
++        raise ImportError_("Fichier illisible : il faut un .zip (ou .json) exporté depuis la Maleta.")
++    if not isinstance(data, dict) or data.get("format") != FORMAT_NAME:
++        raise ImportError_("Ce fichier n'est pas un export de contenu de la Maleta Occitana.")
++    if int(data.get("format_version", 0)) > FORMAT_VERSION:
++        raise ImportError_("Export fait avec une version plus récente de l'appli : mets d'abord cette installation à jour.")
++    return data, archive
++
++
++def build_counts():
++    """Contenu actuel de cette installation, au format de summarize()."""
++    db = get_db()
++    return {
++        s["name"]: db.execute(f"SELECT id FROM {s['table']}").fetchall()
++        for s in SECTIONS
++    }
++
++
++def summarize(data):
++    """Nombre d'elements par section (affiche avant/apres import)."""
++    return [
++        {"name": s["name"], "label": s["label"], "count": len(data.get(s["name"]) or [])}
++        for s in SECTIONS
++    ]
++
++
++def import_bundle(data, archive, sections, mode="merge", import_settings=False, import_tags=True):
++    """Importe les sections demandees. mode "merge" : ajoute ce qui n'existe
++    pas encore (doublons ignores, contenu existant intact) ; mode "replace" :
++    vide d'abord chaque section importee. Renvoie un rapport
++    {section: {"added": n, "skipped": n}, "files": n, "warnings": [...]}."""
++    if mode not in ("merge", "replace"):
++        raise ImportError_("Mode d'import inconnu.")
++    db = get_db()
++    report = {"sections": {}, "files": 0, "warnings": []}
++    file_cache = {}
++
++    def import_file(kind, filename):
++        """Copie un media de l'archive vers le dossier local. Renvoie le nom
++        local (renomme si un fichier DIFFERENT porte deja ce nom), ou None."""
++        if not filename:
++            return None
++        cache_key = (kind, filename)
++        if cache_key in file_cache:
++            return file_cache[cache_key]
++        archive_dir, get_dir, allowed = MEDIA_KINDS[kind]
++        result = None
++        base = os.path.basename(str(filename).replace("\\", "/"))
++        content = None
++        if archive is not None:
++            try:
++                content = archive.read(f"{archive_dir}/{base}")
++            except KeyError:
++                content = None
++        target_dir = get_dir()
++        name, ext = safe_upload_name(base)
++        if ext not in allowed:
++            report["warnings"].append(f"Fichier ignoré (format non autorisé) : {base}")
++        elif content is None:
++            # Pas dans l'archive : garde la reference seulement si le fichier
++            # existe deja ici (ex. reimport sur la meme machine).
++            if os.path.isfile(os.path.join(target_dir, name)):
++                result = name
++            else:
++                report["warnings"].append(f"Fichier absent de l'archive : {base}")
++        else:
++            os.makedirs(target_dir, exist_ok=True)
++            result, written = _store_file(target_dir, name, content)
++            if written:
++                report["files"] += 1
++        file_cache[cache_key] = result
++        return result
++
++    for section_name in sections:
++        section = SECTIONS_BY_NAME.get(section_name)
++        if section is None:
++            continue
++        items = data.get(section_name) or []
++        if not isinstance(items, list):
++            raise ImportError_(f"Section « {section['label']} » invalide.")
++        added = skipped = 0
++        if mode == "replace":
++            db.execute(f"DELETE FROM {section['table']}")
++        existing_keys = {
++            _key(section, dict(row))
++            for row in db.execute(f"SELECT {', '.join(section['key'])} FROM {section['table']}")
++        }
++        max_order = db.execute(f"SELECT MAX(sort_order) AS m FROM {section['table']}").fetchone()["m"] or 0
++
++        for raw_item in items:
++            item = _clean_item(section, raw_item)
++            if item is None:
++                skipped += 1
++                continue
++            for field, kind in section["files"].items():
++                if item.get(field):
++                    item[field] = import_file(kind, item[field])
++            if any(not item.get(f) for f in section["required"]):
++                # ex. photo du diaporama dont le fichier manque
++                skipped += 1
++                continue
++            key = _key(section, item)
++            if key in existing_keys:
++                skipped += 1
++                continue
++            existing_keys.add(key)
++            item["sort_order"] = max_order + int(item.get("sort_order") or 0) + 1
++            cols = section["fields"]
++            cur = db.execute(
++                f"INSERT INTO {section['table']} ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
++                [item.get(c) for c in cols],
++            )
++            if section_name == "objects" and import_tags:
++                for uid in raw_item.get("tags") or []:
++                    uid = str(uid).strip()
++                    if uid and not _is_fake_tag(uid):
++                        _pair_tag_nocommit(db, uid, cur.lastrowid)
++            added += 1
++        report["sections"][section_name] = {"label": section["label"], "added": added, "skipped": skipped}
++
++    if import_settings:
++        settings = data.get("settings") or {}
++        for key in SETTINGS_KEYS:
++            value = settings.get(key)
++            if not isinstance(value, str) or not value:
++                continue
++            if key in SETTINGS_FILES:
++                value = import_file(SETTINGS_FILES[key], value)
++                if not value:
++                    continue
++            db.execute(
++                "INSERT INTO settings (key, value) VALUES (?, ?) "
++                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
++                (key, value),
++            )
++        report["settings"] = True
++
++    db.commit()
++    if _demo_mode():
++        from managers import object_manager
++        object_manager.ensure_demo_tags()
++    return report
++
++
++def _store_file(target_dir, name, content):
++    """Ecrit `content` dans target_dir sous `name`, sauf si un fichier
++    identique y est deja (reutilise), ou renomme si un fichier different
++    porte ce nom. Renvoie (nom_local, ecrit)."""
++    path = os.path.join(target_dir, name)
++    digest = hashlib.sha256(content).hexdigest()
++    if os.path.isfile(path):
++        with open(path, "rb") as f:
++            if hashlib.sha256(f.read()).hexdigest() == digest:
++                return name, False
++        name = f"{digest[:8]}_{name}"
++        path = os.path.join(target_dir, name)
++        if os.path.isfile(path):
++            return name, False
++    with open(path, "wb") as f:
++        f.write(content)
++    return name, True
++
++
++def _pair_tag_nocommit(db, uid, object_id):
++    # Meme logique que object_manager.pair_tag, sans commit intermediaire.
++    if db.execute("SELECT 1 FROM tags WHERE uid = ?", (uid,)).fetchone():
++        db.execute("UPDATE tags SET object_id = ? WHERE uid = ?", (object_id, uid))
++    else:
++        db.execute("INSERT INTO tags (uid, object_id) VALUES (?, ?)", (uid, object_id))
++
++
++def _key(section, item):
++    return tuple(str(item.get(f) or "").strip().casefold() for f in section["key"])
++
++
++def _clean_item(section, raw):
++    """Valide/normalise une entree importee. None si inutilisable."""
++    if not isinstance(raw, dict):
++        return None
++    item = {}
++    for field in section["fields"]:
++        value = raw.get(field)
++        if field in ("active", "is_occitan"):
++            item[field] = 1 if value in (1, True, "1", "true", "True") else 0
++            if field == "active" and value is None:
++                item[field] = 1
++        elif field in ("sort_order", "display_seconds"):
++            try:
++                item[field] = int(value) if value not in (None, "") else None
++            except (TypeError, ValueError):
++                item[field] = None
++        else:
++            item[field] = str(value).strip() if value not in (None, "") else None
++    if "choices" in section:
++        choice = (item.get("correct_choice") or "").lower()
++        if choice not in section["choices"]:
++            return None
++        item["correct_choice"] = choice
++    if section["name"] == "media_items" and item.get("media_type") not in ("image", "video"):
++        return None
++    if section["name"] == "media_items" and item.get("display_seconds") is not None and item["display_seconds"] <= 0:
++        item["display_seconds"] = None
++    if any(not item.get(f) for f in section["required"] if f not in section["files"]):
++        return None
++    return item
+diff -ruN a/templates/admin/base.html b/templates/admin/base.html
+--- a/templates/admin/base.html
++++ b/templates/admin/base.html
+@@ -55,6 +55,7 @@
+         <div class="sidebar-group-label">Sistèma</div>
+         <a class="sidebar-link {{ 'active' if request.endpoint == 'admin.mediatheque' }}" href="{{ url_for('admin.mediatheque') }}">{{ m.icon('folder', sw=2) }}<span>Mediatèca</span></a>
+         <a class="sidebar-link {{ 'active' if request.endpoint == 'admin.config_home' }}" href="{{ url_for('admin.config_home') }}">{{ m.icon('gear', sw=2) }}<span>Configuracion</span></a>
++        <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.transfer', 'admin.transfer_import') }}" href="{{ url_for('admin.transfer') }}">{{ m.icon('database', sw=2) }}<span>Exportar / Importar</span></a>
+       </div>
+ 
+       <div class="sidebar-footer">
+diff -ruN a/templates/admin/transfer.html b/templates/admin/transfer.html
+--- a/templates/admin/transfer.html
++++ b/templates/admin/transfer.html
+@@ -0,0 +1,154 @@
++{% extends "admin/base.html" %}
++{% block title %}Exportar / Importar{% endblock %}
++{% block content %}
++<!-- v1.2 : extraire le contenu saisi a la main (ex. dans la version de demo)
++     pour le reimplanter dans une autre installation (ex. la borne). Voir
++     transfer() dans blueprints/admin.py et managers/content_transfer.py. -->
++<div class="page-header">
++  <div>
++    <div class="page-eyebrow">Sistèma</div>
++    <h1>Exportar / Importar</h1>
++    <p class="muted" style="margin-top:4px">
++      Récupérer tout le contenu saisi à la main (objets, questions, vilatges,
++      diaporama, textes de la borne) dans un seul fichier, pour le réimplanter
++      sur une autre installation — par exemple de la version démo vers la borne.
++    </p>
++  </div>
++</div>
++
++{% if report %}
++<div class="card elev" style="margin-bottom:20px">
++  <div class="card-kicker">Import terminat</div>
++  <div class="card-title">Rapport d'import</div>
++  {% if bundle_info %}
++  <p class="muted" style="margin:0 0 10px">
++    Export de la version {{ bundle_info.app_version or '?' }}
++    ({{ 'démo' if bundle_info.source == 'demo' else 'borne' }}){% if bundle_info.exported_at %}, du {{ bundle_info.exported_at.replace('T', ' à ') }}{% endif %}.
++  </p>
++  {% endif %}
++  <table class="admin-table">
++    <thead><tr><th>Section</th><th>Ajoutés</th><th>Ignorés (doublons ou incomplets)</th></tr></thead>
++    <tbody>
++      {% for name, r in report.sections.items() %}
++      <tr><td>{{ r.label }}</td><td>{{ r.added }}</td><td>{{ r.skipped }}</td></tr>
++      {% else %}
++      <tr><td colspan="3" class="muted">Aucune section de contenu importée.</td></tr>
++      {% endfor %}
++    </tbody>
++  </table>
++  <p class="muted" style="margin:10px 0 0">
++    {{ report.files }} fichier(s) média copié(s).{% if report.settings %} Apparence et textes de la borne importés (recharger l'écran du kiosque pour les voir).{% endif %}
++  </p>
++  {% if report.warnings %}
++  <ul class="muted" style="margin:8px 0 0">
++    {% for w in report.warnings[:20] %}<li>{{ w }}</li>{% endfor %}
++    {% if report.warnings|length > 20 %}<li>… et {{ report.warnings|length - 20 }} autre(s).</li>{% endif %}
++  </ul>
++  {% endif %}
++</div>
++{% endif %}
++
++<div class="cards-grid">
++
++  <div class="card elev">
++    <div class="card-kicker">Exportar</div>
++    <div class="card-title">Extraire le contenu</div>
++    <p class="muted" style="margin:0">Contenu actuel de cette installation :</p>
++    <ul style="margin:6px 0 12px">
++      {% for c in current %}<li>{{ c.label }} : <strong>{{ c.count }}</strong></li>{% endfor %}
++    </ul>
++    <form id="export-form" method="get" action="{{ url_for('admin.transfer_export') }}" class="object-form" style="background:none;padding:0;max-width:none;">
++      <label class="checkbox-label">
++        <input type="checkbox" name="media" value="1" checked> Inclure les images, sons, photos et vidéos
++      </label>
++      <label class="checkbox-label">
++        <input type="checkbox" name="settings" value="1" checked> Inclure l'apparence et les textes de la borne
++      </label>
++      <div class="form-actions">
++        <button type="submit" class="button">Telecargar l'export (.zip)</button>
++      </div>
++    </form>
++    <p class="muted" style="margin:10px 0 0">
++      Le .zip contient aussi un dossier <code>tableur/</code> (fichiers CSV
++      lisibles dans Excel/LibreOffice) pour relire les questions et leurs
++      sources. Jamais exportés : le code PIN, les réglages manette/clavier
++      et les tags NFC simulés.
++    </p>
++    <p id="export-status" class="muted" style="margin:10px 0 0"></p>
++  </div>
++
++  <div class="card elev card-span-2">
++    <div class="card-kicker">Importar</div>
++    <div class="card-title">Réimplanter un export</div>
++    <form method="post" action="{{ url_for('admin.transfer_import') }}" enctype="multipart/form-data"
++          class="object-form" style="background:none;padding:0;max-width:none;" id="import-form">
++      <label>
++        Fichier d'export (.zip, ou .json seul)
++        <input type="file" name="bundle" accept=".zip,.json,application/zip,application/json" required>
++      </label>
++      <fieldset style="border:0;padding:0;margin:0">
++        <legend style="font-weight:700;margin-bottom:6px">Sections à importer</legend>
++        {% for s in sections %}
++        <label class="checkbox-label">
++          <input type="checkbox" name="section_{{ s.name }}" value="1" checked> {{ s.label }}
++        </label>
++        {% endfor %}
++        <label class="checkbox-label">
++          <input type="checkbox" name="settings" value="1"> Apparence et textes de la borne (modèle, bannière, textes)
++        </label>
++        <label class="checkbox-label">
++          <input type="checkbox" name="tags" value="1" checked> Tags NFC réels associés aux objets
++        </label>
++      </fieldset>
++      <fieldset style="border:0;padding:0;margin:0">
++        <legend style="font-weight:700;margin-bottom:6px">Mode</legend>
++        <label class="checkbox-label">
++          <input type="radio" name="mode" value="merge" checked>
++          Ajouter — garde le contenu déjà présent ici, ignore les doublons
++        </label>
++        <label class="checkbox-label">
++          <input type="radio" name="mode" value="replace">
++          Remplacer — efface d'abord le contenu des sections cochées
++        </label>
++      </fieldset>
++      <div class="form-actions">
++        <button type="submit" class="button">Importar</button>
++      </div>
++    </form>
++  </div>
++
++</div>
++
++<script>
++  // Remplacer efface du contenu : confirmation explicite.
++  document.getElementById("import-form").addEventListener("submit", (event) => {
++    const mode = event.target.querySelector("input[name=mode]:checked");
++    if (mode && mode.value === "replace" &&
++        !confirm("Le contenu actuel des sections cochées sera effacé avant l'import. Continuer ?")) {
++      event.preventDefault();
++    }
++  });
++
++  // Case décochée = paramètre absent ; on envoie explicitement 0.
++  const exportForm = document.getElementById("export-form");
++  exportForm.addEventListener("submit", (event) => {
++    const params = new URLSearchParams();
++    ["media", "settings"].forEach((name) => {
++      const box = exportForm.querySelector(`input[type=checkbox][name=${name}]`);
++      params.set(name, box.checked ? "1" : "0");
++    });
++    const url = `${exportForm.action}?${params}`;
++    event.preventDefault();
++    // Version de bureau (démo) : boîte « Enregistrer sous » native.
++    if (window.pywebview && window.pywebview.api && window.pywebview.api.save_export) {
++      const status = document.getElementById("export-status");
++      status.textContent = "Préparation de l'export…";
++      window.pywebview.api.save_export(url).then((path) => {
++        status.textContent = path ? `Export enregistré : ${path}` : "Export annulé.";
++      }).catch(() => { status.textContent = "Échec de l'export."; });
++      return;
++    }
++    window.location.href = url;
++  });
++</script>
++{% endblock %}

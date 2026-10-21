@@ -402,11 +402,18 @@ donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
      installation — mode « Ajouter » (doublons ignorés) ou « Remplacer ». Le
      .zip contient aussi des CSV (`tableur/`) pour relire le contenu dans un
      tableur. Jamais exportés : PIN, réglages manette/clavier, tags NFC
-     simulés. Code : `managers/content_transfer.py`.
+     simulés. Code : `managers/content_transfer.py`. Même import en ligne
+     de commande : `importer_contenu.py` (utilisable aussi sur une borne
+     restée en v1.11, voir `docs/import-contenu-version-prod.md` à la racine
+     du dépôt).
   2. **Version démo** (`MALETA_DEMO=1`, utilisée par l'application de bureau
      du dossier `desktop/` à la racine du dépôt — exécutable Windows et
-     paquet .deb) : clavier assigné par défaut, un tag NFC simulé par objet
-     et un panneau « Pausar un objècte » (F2) sur le kiosque, rappel du code
+     paquet .deb), jouable entièrement au clavier et à la souris sans
+     manette : une touche par défaut pour chaque action (complétée au
+     démarrage si une action n'en a plus), clic sur les tuiles, cartes et
+     réponses (`GameController.on_pointer`), clic droit = retour au menu, un
+     tag NFC simulé par objet et un panneau « Pausar un objècte » (F2) sur
+     le kiosque, rappel du code
      PIN par défaut sur la connexion admin, mention DÉMO dans la barre
      latérale. **Aucun effet sur la borne** : `install.sh` ne définit pas
      cette variable.

@@ -138,16 +138,6 @@ def set_object_active(object_id, active):
 # quel objet. Jamais exportes (voir content_transfer.py) : ils ne
 # correspondent a aucun tag physique.
 DEMO_TAG_PREFIX = "DEMO-"
-# Tags fictifs crees par le bouton "Simuler un scan" de l'admin (mode dev).
-SIMULATED_TAG_PREFIX = "SIMU-"
-
-
-def is_fake_tag(uid):
-    return str(uid).startswith((DEMO_TAG_PREFIX, SIMULATED_TAG_PREFIX))
-
-
-def demo_tag_uid(object_id):
-    return f"{DEMO_TAG_PREFIX}{object_id}"
 
 
 def ensure_demo_tags():

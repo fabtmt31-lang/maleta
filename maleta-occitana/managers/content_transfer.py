@@ -18,6 +18,10 @@ Un fichier .json seul (sans medias) est aussi accepte a l'import.
 Ne sont JAMAIS exportes : le code PIN admin, les mappings manette/clavier
 (propres a chaque machine) et les tags NFC fictifs (demo, "Simuler un scan")
 qui ne correspondent a aucun tag physique.
+
+Module volontairement autonome (ne depend que de config, db.database et
+upload_utils, presents depuis la v1.03) : il peut etre depose tel quel sur
+une borne plus ancienne, voir docs/import-contenu-version-prod.md.
 """
 
 import csv
@@ -30,8 +34,20 @@ import zipfile
 
 import config
 from db.database import get_db
-from managers import object_manager
 from managers.upload_utils import safe_upload_name
+
+# Tags NFC fictifs (memes prefixes que object_manager, repris ici pour que ce
+# module reste autonome) : tags simules de la demo et du bouton "Simuler un
+# scan" de l'admin. Jamais exportes ni importes.
+FAKE_TAG_PREFIXES = ("DEMO-", "SIMU-")
+
+
+def _is_fake_tag(uid):
+    return str(uid).startswith(FAKE_TAG_PREFIXES)
+
+
+def _demo_mode():
+    return getattr(config, "DEMO_MODE", False)
 
 FORMAT_NAME = "maleta-occitana-contenu"
 FORMAT_VERSION = 1
@@ -119,7 +135,7 @@ def build_export(include_media=True, include_settings=True):
         "format_version": FORMAT_VERSION,
         "app_version": config.APP_VERSION,
         "exported_at": datetime.datetime.now().isoformat(timespec="seconds"),
-        "source": "demo" if config.DEMO_MODE else "borne",
+        "source": "demo" if _demo_mode() else "borne",
     }
     files = set()  # (kind, filename)
 
@@ -135,8 +151,8 @@ def build_export(include_media=True, include_settings=True):
                     files.add((kind, item[field]))
             if section["name"] == "objects":
                 item["tags"] = [
-                    t["uid"] for t in object_manager.list_tags_for_object(row["id"])
-                    if not object_manager.is_fake_tag(t["uid"])
+                    t["uid"] for t in db.execute("SELECT uid FROM tags WHERE object_id = ?", (row["id"],))
+                    if not _is_fake_tag(t["uid"])
                 ]
             items.append(item)
         data[section["name"]] = items
@@ -170,7 +186,7 @@ def build_export(include_media=True, include_settings=True):
         zf.writestr("LISEZMOI.txt", _readme(data))
 
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
-    prefix = "maleta-demo-contenu" if config.DEMO_MODE else "maleta-contenu"
+    prefix = "maleta-demo-contenu" if _demo_mode() else "maleta-contenu"
     return f"{prefix}-{stamp}.zip", buf.getvalue()
 
 
@@ -292,8 +308,9 @@ def import_bundle(data, archive, sections, mode="merge", import_settings=False, 
                 report["warnings"].append(f"Fichier absent de l'archive : {base}")
         else:
             os.makedirs(target_dir, exist_ok=True)
-            result = _store_file(target_dir, name, content)
-            report["files"] += 1
+            result, written = _store_file(target_dir, name, content)
+            if written:
+                report["files"] += 1
         file_cache[cache_key] = result
         return result
 
@@ -339,7 +356,7 @@ def import_bundle(data, archive, sections, mode="merge", import_settings=False, 
             if section_name == "objects" and import_tags:
                 for uid in raw_item.get("tags") or []:
                     uid = str(uid).strip()
-                    if uid and not object_manager.is_fake_tag(uid):
+                    if uid and not _is_fake_tag(uid):
                         _pair_tag_nocommit(db, uid, cur.lastrowid)
             added += 1
         report["sections"][section_name] = {"label": section["label"], "added": added, "skipped": skipped}
@@ -362,7 +379,8 @@ def import_bundle(data, archive, sections, mode="merge", import_settings=False, 
         report["settings"] = True
 
     db.commit()
-    if config.DEMO_MODE:
+    if _demo_mode():
+        from managers import object_manager
         object_manager.ensure_demo_tags()
     return report
 
@@ -370,20 +388,20 @@ def import_bundle(data, archive, sections, mode="merge", import_settings=False, 
 def _store_file(target_dir, name, content):
     """Ecrit `content` dans target_dir sous `name`, sauf si un fichier
     identique y est deja (reutilise), ou renomme si un fichier different
-    porte ce nom."""
+    porte ce nom. Renvoie (nom_local, ecrit)."""
     path = os.path.join(target_dir, name)
     digest = hashlib.sha256(content).hexdigest()
     if os.path.isfile(path):
         with open(path, "rb") as f:
             if hashlib.sha256(f.read()).hexdigest() == digest:
-                return name
+                return name, False
         name = f"{digest[:8]}_{name}"
         path = os.path.join(target_dir, name)
         if os.path.isfile(path):
-            return name
+            return name, False
     with open(path, "wb") as f:
         f.write(content)
-    return name
+    return name, True
 
 
 def _pair_tag_nocommit(db, uid, object_id):

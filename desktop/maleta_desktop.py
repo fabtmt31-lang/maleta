@@ -262,12 +262,17 @@ class _MenuTitle(str):
 
 
 _HELP_TEXT = (
-    "La Maleta Occitana — version démo\n\n"
+    "La Maleta Occitana — version démo (clavier + souris, aucune manette)\n\n"
+    "CLAVIER\n"
     "Flèches : se déplacer   ·   Entrée : valider   ·   Échap : retour au menu\n"
     "1 / 2 / 3 : réponses (Ven de l'occitan ?, Quiz)\n"
-    "Duèl : S / D (joueur 1), K / L (joueur 2)\n"
+    "Duèl : S / D (joueur 1, réponses A / B), K / L (joueur 2)\n"
     "P : diaporama   ·   F2 : poser un objet (NFC simulé)\n"
     "F11 : plein écran   ·   Ctrl+Alt+A : administration (code 1234)\n\n"
+    "SOURIS\n"
+    "Clic sur une tuile, une carte ou une réponse : la choisir\n"
+    "Duèl : 1er clic = joueur 1, 2e clic = joueur 2\n"
+    "Clic droit : retour au menu   ·   bouton NFC en bas à gauche : poser un objet\n\n"
     "Touches modifiables dans Administration > Configuracion."
 )
 

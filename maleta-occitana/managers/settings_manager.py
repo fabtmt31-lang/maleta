@@ -578,10 +578,23 @@ DEMO_KEY_MAP = {
 
 
 def seed_demo_key_map():
-    """v1.2 (demo) : enregistre DEMO_KEY_MAP si aucun mapping clavier n'existe
-    encore -- ne touche jamais a un mapping deja personnalise."""
+    """v1.2 (demo) : garantit qu'en demo CHAQUE action a une touche. Au
+    premier demarrage, enregistre DEMO_KEY_MAP ; ensuite, ne complete que
+    les actions restees sans touche (avec leur touche par defaut, si elle
+    n'est pas deja prise) -- sans jamais modifier une touche choisie."""
     if _get(KEY_GAMEPAD_KEY_MAP, None) is None:
         set_gamepad_key_map(DEMO_KEY_MAP)
+        return
+    key_map = get_gamepad_key_map()
+    assigned = {a for acts in key_map.values() for a in acts}
+    changed = False
+    for key, actions in DEMO_KEY_MAP.items():
+        for action in actions:
+            if action not in assigned and key not in key_map:
+                key_map[key] = [action]
+                changed = True
+    if changed:
+        set_gamepad_key_map(key_map)
 
 
 def set_gamepad_key_map(key_map):

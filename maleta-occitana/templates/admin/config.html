@@ -172,6 +172,18 @@
          manette branchée. Seule la colonne "Reassignar" (manette) reste
          conditionnelle : "Assignar tòca" (clavier) ne dépend que du
          navigateur, jamais de pygame. -->
+    {% if demo_mode %}
+      <!-- v1.2 : version de demo, jouable entierement au clavier et a la souris. -->
+      <p style="margin:0">
+        <strong>Version démo : aucune manette à configurer.</strong> Chaque action
+        a une touche de clavier par défaut, et tout l'écran de la borne se
+        pilote aussi à la souris (clic sur une tuile, une carte, une réponse ;
+        clic droit = retour au menu).
+      </p>
+      <form method="post" action="{{ url_for('admin.config_keyboard_demo_defaults') }}" style="margin:0">
+        <button type="submit" class="button">Remettre les touches par défaut de la démo</button>
+      </form>
+    {% endif %}
     {% if not pygame_available %}
       <p class="muted" style="margin:0">
         Aucune manette/pygame détectée sur cette machine — la réassignation

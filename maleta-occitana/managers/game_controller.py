@@ -459,6 +459,49 @@ class GameController:
                 self.socketio.emit("kiosk_back", {}, namespace="/kiosk")
             self._dispatch_action(action)
 
+    def on_pointer(self, kind, index=None, choice=None):
+        """v1.2 (version de demo) : clic souris sur un element precis de
+        l'ecran -- tuile du menu ou de "Quantas cartas ?", carte Memòria,
+        reponse du Duèl. Equivaut a deplacer la selection jusqu'a cet element
+        puis a valider, en une fois. Memes garde-fous que on_action (verrou
+        d'entree, traitement un par un). Les reponses de Vertadièr/Quiz et
+        les ecrans "n'importe quelle action" passent par on_action."""
+        with self._dispatch_lock:
+            with self._lock:
+                if time.monotonic() < self._input_lockout_until:
+                    return
+                state = self.state
+            if kind == "menu" and state == STATE_MENU:
+                slot_count = len(MENU_ACTIVITIES) + len(MENU_EXTRA_ICONS)
+                if isinstance(index, int) and 0 <= index < slot_count:
+                    with self._lock:
+                        self.menu_index = index
+                    self._select_menu_activity()
+            elif kind == "memoria_choice" and state in (STATE_MEMORIA_CHOICE, STATE_MEMORIA_VILATGE_CHOICE):
+                if isinstance(index, int) and 0 <= index < len(MEMORIA_CHOICE_OPTIONS):
+                    with self._lock:
+                        if self.memoria_choice is not None:
+                            self.memoria_choice["selected_index"] = index
+                    self._confirm_memoria_choice()
+            elif kind == "memoria_card" and state in (STATE_MEMORIA, STATE_MEMORIA_VILATGE):
+                with self._lock:
+                    valid = (
+                        self.memoria is not None
+                        and self.memoria["feedback"] is None
+                        and isinstance(index, int)
+                        and 0 <= index < len(self.memoria["cards"])
+                    )
+                    if valid:
+                        self.memoria["cursor"] = index
+                if valid:
+                    self._flip_memoria_card()
+            elif kind == "duel" and state == STATE_DUEL and choice in ("a", "b"):
+                # Une seule souris pour deux joueurs : le clic repond pour le
+                # joueur 1, puis pour le joueur 2 s'il a deja repondu.
+                with self._lock:
+                    player = "p1" if self.duel is not None and self.duel["answered_p1"] is None else "p2"
+                self._handle_duel_answer(player, choice)
+
     def _dispatch_action(self, action):
         """Corps de on_action (voir sa docstring), toujours appele sous
         self._dispatch_lock."""

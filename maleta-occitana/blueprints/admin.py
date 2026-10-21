@@ -1150,6 +1150,17 @@ def config_keyboard_assign():
     return redirect(url_for("admin.config_home"))
 
 
+@admin_bp.route("/config/keyboard/demo_defaults", methods=["POST"])
+@login_required
+def config_keyboard_demo_defaults():
+    """v1.2 (demo) : remet le mapping clavier par defaut de la demo."""
+    if not config.DEMO_MODE:
+        return redirect(url_for("admin.config_home"))
+    settings_manager.set_gamepad_key_map(settings_manager.DEMO_KEY_MAP)
+    flash("Touches par défaut de la démo rétablies")
+    return redirect(url_for("admin.config_home"))
+
+
 @admin_bp.route("/config/keyboard/unassign", methods=["POST"])
 @login_required
 def config_keyboard_unassign():
