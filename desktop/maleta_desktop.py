@@ -19,6 +19,7 @@ Usage depuis les sources :
     python desktop/maleta_desktop.py
 """
 
+import faulthandler
 import logging
 import os
 import re
@@ -114,6 +115,17 @@ def main():
         + ([logging.StreamHandler()] if sys.stderr else []),
     )
     logger = logging.getLogger("maleta_desktop")
+    # Plantage natif (ex. composant fenetre Windows) : trace dans un fichier,
+    # sinon l'executable sans console disparait sans rien dire.
+    global _crash_file
+    _crash_file = open(os.path.join(data_dir, "maleta-demo-crash.log"), "w", encoding="utf-8")
+    faulthandler.enable(_crash_file)
+    sys.excepthook = lambda *exc: logger.critical("Erreur non geree", exc_info=exc)
+    threading.excepthook = lambda a: logger.critical(
+        "Erreur non geree (thread %s)", a.thread and a.thread.name,
+        exc_info=(a.exc_type, a.exc_value, a.exc_traceback))
+    logger.info("Demarrage - Python %s - %s - frozen=%s", sys.version.split()[0], sys.platform,
+                getattr(sys, "frozen", False))
 
     # Reglages lus par config.py : a definir AVANT tout import de l'appli.
     os.environ["MALETA_DEMO"] = "1"
@@ -145,22 +157,28 @@ def main():
         logger.error("Le serveur local n'a pas demarre")
         sys.exit(1)
 
-    if os.environ.get("MALETA_SMOKE_TEST") == "1":
+    smoke = os.environ.get("MALETA_SMOKE_TEST")
+    if smoke in ("1", "gui"):
         # Verification automatique des paquets construits (CI) : les pages
-        # principales repondent, puis sortie sans ouvrir de fenetre.
+        # principales repondent ("1" s'arrete la, "gui" ouvre ensuite
+        # vraiment la fenetre, voir plus bas).
         for path in ("/", "/admin/login", "/static/js/kiosk-demo.js", "/demo/objects",
                      "/socket.io/?EIO=4&transport=polling"):
             with urllib.request.urlopen(base_url + path, timeout=10) as resp:
                 logger.info("smoke test %s -> %s", path, resp.status)
         import webview  # noqa: F401 - la fenetre doit au moins pouvoir s'importer
-        logger.info("SMOKE TEST OK")
-        return
+        if smoke == "1":
+            logger.info("SMOKE TEST OK")
+            return
 
     try:
         import webview
         from webview.menu import Menu, MenuAction, MenuSeparator
     except Exception:
         logger.exception("pywebview indisponible - ouverture dans le navigateur")
+        if smoke:
+            raise
+        _show_error("La fenêtre de l'application n'a pas pu être chargée.", data_dir)
         _browser_fallback(base_url)
         return
 
@@ -238,16 +256,57 @@ def main():
     window.events.loaded += on_loaded
     webview.settings["ALLOW_DOWNLOADS"] = True
 
+    page_loaded = threading.Event()
+    window.events.loaded += page_loaded.set
+
+    def watch_gui():
+        # Fenetre ouverte mais page jamais chargee : le noter dans le journal
+        # (et, en test automatique, refermer pour rendre la main).
+        ok = page_loaded.wait(60)
+        if ok:
+            logger.info("Fenetre ouverte, page chargee")
+            if smoke == "gui":
+                title = window.evaluate_js("document.title")
+                logger.info("SMOKE TEST GUI OK - titre : %s", title)
+        else:
+            logger.error("La page ne s'est pas chargee dans la fenetre apres 60 s")
+        if smoke == "gui":
+            gui_result["ok"] = ok
+            window.destroy()
+
+    gui_result = {"ok": False}
     try:
         webview.start(
+            watch_gui,
             menu=menu,
             private_mode=False,
             storage_path=os.path.join(data_dir, "webview"),
             icon=_icon_path(),
         )
+        logger.info("Fenetre fermee (renderer : %s)", getattr(webview, "renderer", "?"))
     except Exception:
         logger.exception("Impossible d'ouvrir la fenetre - ouverture dans le navigateur")
+        if smoke:
+            raise
+        _show_error("La fenêtre de l'application n'a pas pu s'ouvrir : la démo va "
+                    "s'ouvrir dans le navigateur.", data_dir)
         _browser_fallback(base_url)
+        return
+    if smoke == "gui" and not gui_result["ok"]:
+        raise RuntimeError("SMOKE TEST GUI : page non chargee")
+
+
+def _show_error(message, data_dir):
+    """Message visible meme sans console (executable Windows)."""
+    detail = f"{message}\n\nDétails : {os.path.join(data_dir, 'maleta-demo.log')}"
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, detail, APP_TITLE, 0x30)
+            return
+        except Exception:
+            pass
+    print(detail, file=sys.stderr or sys.stdout)
 
 
 class _MenuTitle(str):
@@ -289,8 +348,11 @@ def _browser_fallback(base_url):
         pass
 
 
+_crash_file = None
+
+
 if __name__ == "__main__":
-    if os.environ.get("MALETA_SMOKE_TEST") == "1":
+    if os.environ.get("MALETA_SMOKE_TEST") in ("1", "gui"):
         # Jamais de boite d'erreur bloquante en CI (executable Windows sans
         # console) : code de sortie seulement, detail dans maleta-demo.log.
         try:
@@ -301,4 +363,9 @@ if __name__ == "__main__":
             os._exit(1)
         logging.shutdown()
         os._exit(0)
-    main()
+    try:
+        main()
+    except Exception:
+        logging.getLogger("maleta_desktop").exception("Erreur au demarrage")
+        _show_error("La Maleta Occitana (démo) n'a pas pu démarrer.", _data_dir())
+        sys.exit(1)

@@ -39,14 +39,22 @@ jobs:
         run: pip install -r desktop/requirements.txt pyinstaller==6.11.1
       - name: PyInstaller
         run: pyinstaller --noconfirm packaging/maleta-demo.spec
-      - name: Verification de l'executable
+      - name: Verification de l'executable (serveur puis vraie fenetre)
         shell: pwsh
         run: |
-          $env:MALETA_SMOKE_TEST = "1"
-          $env:MALETA_DATA_DIR = "$env:RUNNER_TEMP\maleta-smoke"
-          $p = Start-Process -FilePath dist\MaletaOccitana-Demo.exe -PassThru -Wait
-          Get-Content "$env:MALETA_DATA_DIR\maleta-demo.log"
-          if ($p.ExitCode -ne 0) { throw "smoke test : code $($p.ExitCode)" }
+          foreach ($mode in @("1", "gui")) {
+            $env:MALETA_SMOKE_TEST = $mode
+            $env:MALETA_DATA_DIR = "$env:RUNNER_TEMP\maleta-smoke-$mode"
+            $p = Start-Process -FilePath dist\MaletaOccitana-Demo.exe -PassThru
+            $finished = $p.WaitForExit(150000)
+            if (-not $finished) { Stop-Process -Id $p.Id -Force }
+            Write-Host "===== smoke $mode : journal ====="
+            Get-Content "$env:MALETA_DATA_DIR\maleta-demo.log" -ErrorAction SilentlyContinue
+            Write-Host "===== smoke $mode : plantages ====="
+            Get-Content "$env:MALETA_DATA_DIR\maleta-demo-crash.log" -ErrorAction SilentlyContinue
+            if (-not $finished) { throw "smoke $mode : bloque (aucune reponse en 150 s)" }
+            if ($p.ExitCode -ne 0) { throw "smoke $mode : code $($p.ExitCode)" }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: windows-exe
@@ -68,8 +76,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ./dist/maleta-occitana-demo_*_all.deb
+          sudo apt-get install -y xvfb
           MALETA_SMOKE_TEST=1 MALETA_DATA_DIR="$RUNNER_TEMP/maleta-smoke" maleta-occitana-demo
-          cat "$RUNNER_TEMP/maleta-smoke/maleta-demo.log"
+          MALETA_SMOKE_TEST=gui MALETA_DATA_DIR="$RUNNER_TEMP/maleta-smoke-gui" timeout 150 xvfb-run -a maleta-occitana-demo \
+            || { cat "$RUNNER_TEMP/maleta-smoke-gui/maleta-demo.log"; exit 1; }
+          cat "$RUNNER_TEMP/maleta-smoke-gui/maleta-demo.log"
       - uses: actions/upload-artifact@v4
         with:
           name: linux-deb
