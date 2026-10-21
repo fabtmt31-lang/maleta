@@ -56,9 +56,12 @@ def _data_dir():
 
 
 def _icon_path():
+    # Windows (WinForms) n'accepte qu'un .ico pour l'icone de fenetre : un
+    # .png y provoque une exception .NET qui ferme l'application au demarrage.
+    name = "maleta-occitana.ico" if sys.platform == "win32" else "maleta-occitana.png"
     candidates = [
-        os.path.join(getattr(sys, "_MEIPASS", HERE), "assets", "maleta-occitana.png"),
-        os.path.join(HERE, "assets", "maleta-occitana.png"),
+        os.path.join(getattr(sys, "_MEIPASS", HERE), "assets", name),
+        os.path.join(HERE, "assets", name),
     ]
     return next((p for p in candidates if os.path.isfile(p)), None)
 
@@ -275,18 +278,8 @@ def main():
             window.destroy()
 
     gui_result = {"ok": False}
-    # Diagnostic : MALETA_WEBVIEW_OPTS=nomenu,noicon,private desactive une option.
-    opts = set(filter(None, os.environ.get("MALETA_WEBVIEW_OPTS", "").split(",")))
     start_kwargs = {"menu": menu, "private_mode": False,
                     "storage_path": os.path.join(data_dir, "webview"), "icon": _icon_path()}
-    if "nomenu" in opts:
-        start_kwargs.pop("menu")
-    if "noicon" in opts:
-        start_kwargs.pop("icon")
-    if "private" in opts:
-        start_kwargs.pop("storage_path")
-        start_kwargs["private_mode"] = True
-    logger.info("Ouverture de la fenetre (options : %s)", sorted(start_kwargs))
     try:
         webview.start(watch_gui, **start_kwargs)
         logger.info("Fenetre fermee (renderer : %s)", getattr(webview, "renderer", "?"))
