@@ -1,0 +1,34 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Modifier' if village else 'Ajouter' }} un vilatge{% endblock %}
+{% block content %}
+<h1>{{ 'Modifier' if village else 'Ajouter' }} un vilatge — Memòria vilatge</h1>
+
+<form method="post" class="object-form">
+  <label>
+    Nom français
+    <input type="text" name="name_fr" value="{{ village.name_fr if village else '' }}" required
+           placeholder="ex. « Toulouse »">
+  </label>
+  <label>
+    Nom occitan
+    <input type="text" name="name_oc" value="{{ village.name_oc if village else '' }}" required
+           placeholder="ex. « Tolosa »">
+  </label>
+  <label>
+    Source utilisée pour vérifier
+    <input type="text" name="source" value="{{ village.source if village else '' }}"
+           placeholder="ex. CNRTL, Institut d'Estudis Occitan...">
+  </label>
+  {% if village %}
+  <label class="checkbox-label">
+    <input type="checkbox" name="active" {{ 'checked' if village.active else '' }}>
+    Actif (visible dans le jeu)
+  </label>
+  {% endif %}
+
+  <div class="form-actions">
+    <button type="submit" class="button">Enregistrer</button>
+    <a href="{{ url_for('admin.villages_list') }}">Annuler</a>
+  </div>
+</form>
+{% endblock %}

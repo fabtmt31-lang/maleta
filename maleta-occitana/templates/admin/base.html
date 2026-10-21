@@ -1,0 +1,95 @@
+<!doctype html>
+{%- import 'kiosk/_macros.html' as m -%}
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Admin{% endblock %} — Maleta Occitana</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fonts.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<!-- v1.1 : l'admin suit le modele d'interface choisi pour la borne
+     (Senhal / Mercat / Nuèch), voir inject_ui_template() dans admin.py. -->
+<body data-template="{{ ui_template }}">
+  <div class="admin-shell {{ 'admin-shell-with-sidebar' if session.get('admin_logged_in') else '' }}">
+    {% if session.get('admin_logged_in') %}
+    <!-- v0.5 : barre latérale groupée "Contengut"/"Sistèma", un compteur par
+         section (inject_sidebar_counts() dans blueprints/admin.py). v1.1 :
+         icônes + croix des maquettes « 3 directions » ; le nom de la borne
+         ramène au tableau de bord. -->
+    <aside class="sidebar">
+      <a class="sidebar-brand" href="{{ url_for('admin.dashboard') }}" title="Tableau de bord">
+        {{ m.cross() }}
+        <span class="sidebar-brand-name">La Maleta<br>Occitana</span>
+      </a>
+
+      <div class="sidebar-group">
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'admin.dashboard' }}" href="{{ url_for('admin.dashboard') }}">
+          {{ m.icon('grid', sw=2) }}<span>Tableau de bord</span>
+        </a>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Contengut</div>
+        <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.objects_list', 'admin.object_new', 'admin.object_edit') }}" href="{{ url_for('admin.objects_list') }}">
+          {{ m.icon('tag', sw=2) }}<span>Objèctes &amp; tags</span> <span class="sidebar-badge">{{ sidebar_counts.objects }}</span>
+        </a>
+        <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.media_list', 'admin.media_new', 'admin.media_edit', 'admin.media_bulk') }}" href="{{ url_for('admin.media_list') }}">
+          {{ m.icon('image', sw=2) }}<span>Fotos &amp; vidèos</span> <span class="sidebar-badge">{{ sidebar_counts.media }}</span>
+        </a>
+        <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.vertadier_list', 'admin.vertadier_new', 'admin.vertadier_edit') }}" href="{{ url_for('admin.vertadier_list') }}">
+          {{ m.icon('check', sw=2) }}<span>Ven de l'occitan ?</span> <span class="sidebar-badge {{ 'sidebar-badge-accent-2' if sidebar_counts.vertadier == 0 }}">{{ sidebar_counts.vertadier }}</span>
+        </a>
+        <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.duel_list', 'admin.duel_new', 'admin.duel_edit') }}" href="{{ url_for('admin.duel_list') }}">
+          {{ m.icon('people', sw=2) }}<span>Duèl Occitan</span> <span class="sidebar-badge {{ 'sidebar-badge-accent-2' if sidebar_counts.duel == 0 }}">{{ sidebar_counts.duel }}</span>
+        </a>
+        <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.villages_list', 'admin.village_new', 'admin.village_edit') }}" href="{{ url_for('admin.villages_list') }}">
+          {{ m.icon('houses', sw=2) }}<span>Vilatges (Memòria)</span> <span class="sidebar-badge {{ 'sidebar-badge-accent-2' if sidebar_counts.villages == 0 }}">{{ sidebar_counts.villages }}</span>
+        </a>
+        <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.quiz_list', 'admin.quiz_new', 'admin.quiz_edit') }}" href="{{ url_for('admin.quiz_list') }}">
+          {{ m.icon('question', sw=2) }}<span>Quiz Calandreta</span> <span class="sidebar-badge {{ 'sidebar-badge-accent-2' if sidebar_counts.quiz == 0 }}">{{ sidebar_counts.quiz }}</span>
+        </a>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Sistèma</div>
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'admin.mediatheque' }}" href="{{ url_for('admin.mediatheque') }}">{{ m.icon('folder', sw=2) }}<span>Mediatèca</span></a>
+        <a class="sidebar-link {{ 'active' if request.endpoint == 'admin.config_home' }}" href="{{ url_for('admin.config_home') }}">{{ m.icon('gear', sw=2) }}<span>Configuracion</span></a>
+      </div>
+
+      <div class="sidebar-footer">
+        <a class="sidebar-footer-link" href="{{ url_for('kiosk.index') }}" target="_blank">{{ m.icon('external', sw=2) }}Veire lo quiòsc</a>
+        <a class="sidebar-footer-logout" href="{{ url_for('admin.logout') }}">{{ m.icon('logout', sw=2) }}Se desconnectar</a>
+        <span class="sidebar-footer-version">v{{ app_version }}</span>
+      </div>
+    </aside>
+    {% endif %}
+
+    <main class="admin-main">
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="flash">{{ messages[0] }}</div>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <!-- v0.6 : sélecteur « choisir dans la médiathèque » (voir static/js/admin.js
+       et les boutons data-media-picker dans object_form.html / media_form.html
+       / config.html) -- un seul modal partagé pour toute l'admin. -->
+  <div id="mediatheque-picker-modal" class="mtp-modal hidden">
+    <div class="mtp-modal-backdrop" data-mtp-close></div>
+    <div class="mtp-modal-panel">
+      <div class="mtp-modal-header">
+        <span>Choisir dans la médiathèque</span>
+        <button type="button" class="mtp-modal-close" data-mtp-close aria-label="Fermer">×</button>
+      </div>
+      <div class="mtp-modal-body" id="mtp-modal-body">
+        <p class="muted">Chargement…</p>
+      </div>
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+{% extends "admin/base.html" %}
+{% block title %}Fotos &amp; vidèos{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Fotos &amp; vidèos</h1>
+  <div class="page-header-actions">
+    <a class="button" href="{{ url_for('admin.media_new') }}">+ Ajouter une photo/vidéo</a>
+    <a class="button" href="{{ url_for('admin.media_bulk') }}">+ Import en masse</a>
+  </div>
+</div>
+<p class="muted">
+  Ordre d'affichage dans le diaporama de haut en bas. Un média désactivé
+  reste en base mais n'apparaît plus dans la boucle — pratique pour préparer
+  du contenu à l'avance sans encore le publier.
+</p>
+
+<table class="admin-table">
+  <thead>
+    <tr>
+      <th>Ordre</th>
+      <th>Aperçu</th>
+      <th>Type</th>
+      <th>Légende</th>
+      <th>Durée (photo)</th>
+      <th>Actif</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in media %}
+    <tr class="{{ 'inactive' if not item.active else '' }}">
+      <td class="row-actions">
+        <form method="post" action="{{ url_for('admin.media_move', media_id=item.id, direction='up') }}" style="display:inline">
+          <button type="submit" title="Monter">▲</button>
+        </form>
+        <form method="post" action="{{ url_for('admin.media_move', media_id=item.id, direction='down') }}" style="display:inline">
+          <button type="submit" title="Descendre">▼</button>
+        </form>
+      </td>
+      <td>
+        {% if item.media_type == 'image' %}
+          <img src="{{ url_for('media_library_file', filename=item.filename) }}" alt="" class="media-thumb">
+        {% else %}
+          <span class="muted">🎬 vidéo</span>
+        {% endif %}
+      </td>
+      <td>{{ item.media_type }}</td>
+      <td>{{ item.caption or '—' }}</td>
+      <td>{{ item.display_seconds or ('par défaut (' ~ default_seconds ~ 's)') if item.media_type == 'image' else '—' }}</td>
+      <td>
+        <form method="post" action="{{ url_for('admin.media_toggle_active', media_id=item.id) }}">
+          <button type="submit" class="toggle {{ 'on' if item.active else 'off' }}">
+            {{ 'actif' if item.active else 'inactif' }}
+          </button>
+        </form>
+      </td>
+      <td class="row-actions">
+        <a href="{{ url_for('admin.media_edit', media_id=item.id) }}">Modifier</a>
+        <form method="post" action="{{ url_for('admin.media_delete', media_id=item.id) }}"
+              onsubmit="return confirm('Supprimer ce média ?');">
+          <button type="submit" class="link-danger">Supprimer</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">Aucun média pour l'instant — la borne affichera l'écran d'accueil "Pausa un objècte" tant qu'aucune photo/vidéo n'est ajoutée.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

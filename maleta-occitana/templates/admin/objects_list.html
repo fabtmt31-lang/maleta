@@ -1,0 +1,54 @@
+{% extends "admin/base.html" %}
+{% block title %}Objets &amp; tags{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Objets &amp; tags</h1>
+  <a class="button" href="{{ url_for('admin.object_new') }}">+ Ajouter un objet</a>
+</div>
+
+<table class="admin-table">
+  <thead>
+    <tr>
+      <th>Actif</th>
+      <th>Mot occitan</th>
+      <th>Traduction</th>
+      <th>Categorie</th>
+      <th>Tags associes</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for obj in objects %}
+    <tr class="{{ 'inactive' if not obj.active else '' }}">
+      <td>
+        <form method="post" action="{{ url_for('admin.object_toggle_active', object_id=obj.id) }}">
+          <button type="submit" class="toggle {{ 'on' if obj.active else 'off' }}">
+            {{ 'actif' if obj.active else 'inactif' }}
+          </button>
+        </form>
+      </td>
+      <td>{{ obj.name_oc }}</td>
+      <td>{{ obj.name_fr }}</td>
+      <td>{{ obj.category or '—' }}</td>
+      <td>
+        {% set tags = tags_by_object.get(obj.id, []) %}
+        {% if tags %}
+          {{ tags | length }} tag(s)
+        {% else %}
+          <span class="muted">aucun tag</span>
+        {% endif %}
+      </td>
+      <td class="row-actions">
+        <a href="{{ url_for('admin.object_edit', object_id=obj.id) }}">Modifier</a>
+        <form method="post" action="{{ url_for('admin.object_delete', object_id=obj.id) }}"
+              onsubmit="return confirm('Supprimer cet objet ?');">
+          <button type="submit" class="link-danger">Supprimer</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">Aucun objet pour l'instant.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+{% import 'kiosk/_macros.html' as m %}
+{% block title %}Tableau de bord{% endblock %}
+{% block content %}
+<!-- v1.1 : tableau de bord refait d'après les maquettes « 3 directions » --
+     une carte par jeu de la borne avec son état « Jogable » / « A completar »
+     (mêmes seuils que le kiosque, voir dashboard() dans blueprints/admin.py). -->
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">Vista d'ensemble</div>
+    <h1>Tableau de bord</h1>
+  </div>
+  <a class="button" href="{{ url_for('admin.object_new') }}">{{ m.icon('plus', sw=2.6) }}Novèl objècte</a>
+</div>
+
+<div class="stat-row dash-stats">
+  <div class="stat-card"><div class="stat-value">{{ nb_objects_active }}</div><div class="stat-label">Objèctes actius</div></div>
+  <div class="stat-card"><div class="stat-value">{{ nb_media_active }}</div><div class="stat-label">Mèdias actius</div></div>
+  <div class="stat-card"><div class="stat-value">{{ nb_games_to_complete }}</div><div class="stat-label">Contenguts a completar</div></div>
+</div>
+
+<h2 class="section-title">Los jòcs sus la borne</h2>
+<div class="games">
+  {% for game in games %}
+  <div class="game-card game-{{ game.id }}">
+    <span class="game-icon">{{ m.icon(game.id, sw=2) }}</span>
+    <div class="game-title">{{ game.label }}</div>
+    <div class="game-count">
+      <span class="game-count-value">{{ game.count }}</span>
+      <span class="game-count-unit">{{ game.unit }}</span>
+    </div>
+    {% if game.playable %}
+      <span class="pill pill-ok">Jogable</span>
+    {% else %}
+      <span class="pill pill-todo" title="Il faut {{ game.need }}">A completar</span>
+    {% endif %}
+    <a class="game-link" href="{{ game.url }}" title="{{ 'Gerir' if game.playable else 'Il faut ' ~ game.need }}">
+      {{ 'Gerir →' if game.playable else 'Apondre de contengut →' }}
+      {% if not game.playable %}<span class="game-need">il faut {{ game.need }}</span>{% endif %}
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="dash-extra">
+  <div class="dash-frame">
+    <span class="dash-frame-icon">{{ m.icon('image', sw=2) }}</span>
+    <div>
+      <div class="dash-frame-title">Cadre fotó &amp; vidèo</div>
+      <div class="dash-frame-sub">{{ nb_media_active }} mèdias actius · diaporama de velha</div>
+    </div>
+    <a href="{{ url_for('admin.media_list') }}">Gerir →</a>
+  </div>
+  <div class="disk-card">
+    <div class="disk-card-label">{{ m.icon('database', sw=2) }}Espace disque</div>
+    <div class="disk-bar"><div class="disk-bar-used" style="width: {{ disk.used_percent }}%;"></div></div>
+    <div class="disk-card-detail">{{ disk_free_label }} libres sur {{ disk_total_label }} ({{ disk.used_percent }}% utilisé)</div>
+  </div>
+</div>
+
+<p class="muted dash-notes">
+  Les Memòria réutilisent les contenus déjà saisis : « Memòria » les objets
+  actifs (mot français d'un côté, mot occitan de l'autre), « Memòria vilatge »
+  les vilatges. Il en faut au moins {{ memoria_min_pairs }} pour une manche
+  courte ; la manche longue ({{ memoria_max_pairs }} paires) n'est proposée au
+  visiteur que s'il y en a {{ memoria_max_pairs }} ou plus. Tròba l'objècte
+  n'utilise que les objets actifs qui ont un tag NFC.
+</p>
+{% endblock %}

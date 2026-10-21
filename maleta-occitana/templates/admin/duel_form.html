@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Modifier' if question else 'Ajouter' }} une question{% endblock %}
+{% block content %}
+<h1>{{ 'Modifier' if question else 'Ajouter' }} une question — Duèl Occitan</h1>
+
+<form method="post" class="object-form">
+  <label>
+    Question (française)
+    <input type="text" name="question_fr" value="{{ question.question_fr if question else '' }}" required
+           placeholder="ex. « Quelle ville est la capitale historique de l'Occitanie ? »">
+  </label>
+  <label>
+    Réponse A
+    <input type="text" name="choice_a" value="{{ question.choice_a if question else '' }}" required
+           placeholder="ex. « Tolosa »">
+  </label>
+  <label>
+    Réponse B
+    <input type="text" name="choice_b" value="{{ question.choice_b if question else '' }}" required
+           placeholder="ex. « Marselha »">
+  </label>
+  <label>
+    Bonne réponse
+    <select name="correct_choice">
+      <option value="a" {{ 'selected' if not question or question.correct_choice == 'a' }}>A</option>
+      <option value="b" {{ 'selected' if question and question.correct_choice == 'b' }}>B</option>
+    </select>
+  </label>
+  <label>
+    Explication (affichée après la réponse des deux joueurs)
+    <input type="text" name="explanation" value="{{ question.explanation if question else '' }}"
+           placeholder="courte explication, sourcée">
+  </label>
+  <label>
+    Source utilisée pour vérifier
+    <input type="text" name="source" value="{{ question.source if question else '' }}"
+           placeholder="ex. CNRTL, Institut d'Estudis Occitan...">
+  </label>
+  {% if question %}
+  <label class="checkbox-label">
+    <input type="checkbox" name="active" {{ 'checked' if question.active else '' }}>
+    Actif (visible dans le jeu)
+  </label>
+  {% endif %}
+
+  <div class="form-actions">
+    <button type="submit" class="button">Enregistrer</button>
+    <a href="{{ url_for('admin.duel_list') }}">Annuler</a>
+  </div>
+</form>
+{% endblock %}

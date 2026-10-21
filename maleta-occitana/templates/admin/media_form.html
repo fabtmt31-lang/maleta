@@ -1,0 +1,41 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Modifier' if item else 'Ajouter' }} un média{% endblock %}
+{% block content %}
+<h1>{{ 'Modifier' if item else 'Ajouter' }} une photo ou une vidéo</h1>
+
+<form method="post" enctype="multipart/form-data" class="object-form">
+  <label>
+    Fichier {{ '(laisser vide pour garder le fichier actuel)' if item else '' }}
+    {% if item %}
+      <div class="current-file">actuel : {{ item.filename }} ({{ item.media_type }})</div>
+    {% endif %}
+    <input type="file" name="file" accept="image/*,video/mp4,video/webm,video/quicktime" id="file-file-input">
+  </label>
+  <div class="media-picker-row">
+    <button type="button" class="media-picker-btn" data-media-picker="library"
+            data-file-input="file-file-input" data-hidden-input="file-existing-input"
+            data-preview="file-existing-preview">Choisir dans la médiathèque</button>
+    <input type="hidden" name="existing_filename" id="file-existing-input">
+    <span class="media-picker-preview" id="file-existing-preview"></span>
+  </div>
+  <label>
+    Légende (optionnelle)
+    <input type="text" name="caption" value="{{ item.caption if item else '' }}" placeholder="ex: Sortie escòla, promocion 2026">
+  </label>
+  <label>
+    Durée d'affichage en secondes (photos uniquement — laisser vide pour la valeur par défaut)
+    <input type="text" name="display_seconds" inputmode="numeric" value="{{ item.display_seconds if item and item.display_seconds else '' }}">
+  </label>
+  {% if item %}
+  <label class="checkbox-label">
+    <input type="checkbox" name="active" {{ 'checked' if item.active else '' }}>
+    Actif (affiché dans le diaporama)
+  </label>
+  {% endif %}
+
+  <div class="form-actions">
+    <button type="submit" class="button">Enregistrer</button>
+    <a href="{{ url_for('admin.media_list') }}">Annuler</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,513 @@
+<!doctype html>
+{%- import 'kiosk/_macros.html' as m -%}
+{#- v1.1 (demande par Fabien) : refonte complete de l'ecran de la borne sur
+    les maquettes « La Maleta Occitana — 3 directions ». Les anciennes
+    palettes de couleur sont remplacees par 3 MODELES (Senhal par defaut,
+    Mercat, Nuèch -- Configuration > Aparença) : chaque modele a ses polices,
+    ses formes et ses decorations, mais TOUS partagent la meme structure HTML
+    et les memes identifiants (#troba-score, #memoria-grid...) lus par
+    static/js/kiosk.js. Seuls les elements purement decoratifs changent d'un
+    modele a l'autre (blocs {% if template == ... %} ci-dessous) ; tout le
+    reste (mise en page, couleurs) est dans static/css/kiosk-<modele>.css.
+
+    Chaque ecran contient une « scene » (.stage) dessinee pour 1280x720 et
+    mise a l'echelle de l'ecran reel par le petit script ci-dessous : le rendu
+    reste identique quelle que soit la resolution de la borne, sans bande
+    noire (la scene s'agrandit dans la direction ou l'ecran a de la marge).
+
+    Les rappels de touches ne figurent plus sur les tuiles du menu (demande de
+    Fabien) : uniquement dans la barre d'aide en bas de l'ecran, avec le
+    texte saisi dans Configuration > Manèta & clavièr. -#}
+{%- macro fin_screen(prefix, title, game_label, detail_id=None, score_id=None) -%}
+  <div class="stage fin fin-{{ prefix }}">
+    {%- if template == 'senhal' %}
+    <div class="deco deco-fin-cross">{{ m.cross('#F5C518', sw=4.4) }}</div>
+    {%- elif template == 'mercat' %}
+    <div class="deco deco-confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="deco deco-hills">{{ m.hills() }}</div>
+    {%- else %}
+    <div class="deco deco-fin-constellation">{{ m.constellation('#F4EDE0', sw=3, line_opacity=0.6) }}</div>
+    {%- endif %}
+    <div class="fin-content">
+      <div class="fin-stars" aria-hidden="true">{{ m.icon('star', sw=0) }}{{ m.icon('star', sw=0) }}{{ m.icon('star', sw=0) }}</div>
+      <div class="fin-eyebrow">{{ m.icon('check') }}<span>{{ game_label }}</span></div>
+      <h1 class="fin-title">{{ title }}</h1>
+      <div class="fin-score">
+        {%- if template == 'senhal' %}{{ m.starburst() }}{% endif %}
+        <div class="fin-score-inner">
+          <span class="fin-score-value" id="{{ score_id or prefix ~ '-fin-score' }}"></span>
+          <span class="fin-score-total" id="{{ prefix }}-fin-total"></span>
+        </div>
+      </div>
+      <div class="fin-rule"></div>
+      {%- if detail_id %}
+      <div class="fin-detail">{{ caller() if caller else '' }}</div>
+      {%- endif %}
+      <div class="fin-cta">Descobrissètz mai sus las escòlas Calandreta — demandatz a l'equipa del estand !</div>
+      <div class="fin-hint">{{ m.key(action_labels.select) }}<span>Quin bouton per tornar al menú</span></div>
+    </div>
+  </div>
+{%- endmacro -%}
+<html lang="oc">
+<head>
+  <meta charset="utf-8">
+  <title>La Maleta Occitana</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Polices servies en local (static/fonts, aucune dependance reseau). -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fonts.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk-base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk-' ~ template ~ '.css') }}">
+  <script>
+    // v1.1 : mise a l'echelle de la scene 1280x720 (voir .stage dans
+    // kiosk-base.css). Execute le plus tot possible pour eviter un affichage
+    // a la mauvaise taille au chargement, puis a chaque redimensionnement.
+    (function () {
+      function layoutStage() {
+        var w = window.innerWidth || 1280, h = window.innerHeight || 720;
+        var scale, sw, sh;
+        if (w / h >= 1280 / 720) { scale = h / 720; sh = 720; sw = w / scale; }
+        else { scale = w / 1280; sw = 1280; sh = h / scale; }
+        var root = document.documentElement.style;
+        root.setProperty("--stage-scale", scale);
+        root.setProperty("--stage-w", sw + "px");
+        root.setProperty("--stage-h", sh + "px");
+      }
+      layoutStage();
+      window.addEventListener("resize", function () {
+        layoutStage();
+        if (window.maletaRefit) window.maletaRefit();
+      });
+    })();
+  </script>
+</head>
+<body data-template="{{ template }}">
+
+  <!-- v0.83 : element audio PARTAGE entre Descobèrta et Tròba l'objècte
+       (prononciation de l'objet), hors des ecrans pour rester utilisable
+       quel que soit l'ecran affiche. -->
+  <audio id="object-audio"></audio>
+
+  {%- if template == 'nuech' %}
+  <!-- Ciel etoile du modele Nuèch (etoiles ajoutees par kiosk.js). -->
+  <div class="sky" id="sky" aria-hidden="true"></div>
+  {%- endif %}
+
+  <!-- ============ Veille sans media : « Pausa un objècte » ============ -->
+  <section id="screen-attract" class="screen">
+    <div class="stage attract">
+      {%- if template == 'senhal' %}
+      <div class="attract-panel">
+        <div class="deco deco-attract-cross">{{ m.cross('#F5C518', sw=4.4) }}</div>
+        {{ m.brand(texts, branding, template) }}
+        <div class="attract-copy">
+          <h1 class="attract-title">{{ texts.attract_title }}</h1>
+          <div class="attract-sub">{{ texts.attract_subtitle }}</div>
+        </div>
+        <p class="attract-hint">{{ texts.attract_hint }}</p>
+      </div>
+      <div class="attract-side">
+        <div class="nfc-target">
+          <span class="ring ring-pulse"></span>
+          <span class="ring ring-outer"></span>
+          <span class="ring ring-solid"></span>
+          <span class="ring ring-dashed"></span>
+          <span class="nfc-core">{{ m.icon('nfc', sw=2.2) }}</span>
+        </div>
+        <div class="attract-pill">{{ m.key(action_labels.select) }}<span>o un autre bouton per jogar</span></div>
+      </div>
+      {%- elif template == 'mercat' %}
+      <div class="deco deco-sun">{{ m.sun() }}</div>
+      <div class="deco deco-hills">{{ m.hills() }}</div>
+      <div class="attract-panel">
+        {{ m.brand(texts, branding, template) }}
+        <div class="attract-copy">
+          <h1 class="attract-title">{{ texts.attract_title }}</h1>
+          <div class="attract-sub">{{ texts.attract_subtitle }}</div>
+        </div>
+        <p class="attract-hint">{{ texts.attract_hint }}</p>
+      </div>
+      <div class="attract-side">
+        <div class="suitcase-wrap">
+          <span class="suitcase-wave">{{ m.icon('nfc', sw=2.4) }}</span>
+          {{ m.suitcase() }}
+        </div>
+      </div>
+      {%- else %}
+      <div class="attract-panel">
+        {{ m.brand(texts, branding, template) }}
+        <div class="attract-emblem">
+          <span class="ring ring-a"></span><span class="ring ring-b"></span>
+          {{ m.constellation() }}
+        </div>
+        <div class="attract-copy">
+          <h1 class="attract-title">{{ texts.attract_title }}</h1>
+          <div class="attract-sub">{{ texts.attract_subtitle }}</div>
+        </div>
+        <p class="attract-hint">{{ texts.attract_hint }}</p>
+        <div class="attract-listen">{{ m.icon('nfc', sw=2) }}<span>La maleta escota…</span></div>
+      </div>
+      {%- endif %}
+    </div>
+  </section>
+
+  <!-- ============ Diaporama « Cadre fotó & vidèo » ============ -->
+  <section id="screen-diaporama" class="screen hidden">
+    <img id="diaporama-image" class="diaporama-media" alt="">
+    <video id="diaporama-video" class="diaporama-media hidden" muted playsinline></video>
+    <div class="diaporama-caption" id="diaporama-caption"></div>
+    <!-- v1.02 : n'importe quelle action quitte le diaporama (voir
+         game_controller.py, STATE_VEILLE) -- petite croix + phrase d'aide. -->
+    <div class="diaporama-exit-hint">
+      {{ m.icon('close', sw=2.6) }}
+      <span>Quin bouton per tornar al menú</span>
+    </div>
+  </section>
+
+  <!-- ============ Descobèrta d'objèctes ============ -->
+  <section id="screen-descoberta" class="screen hidden">
+    <div class="stage desc">
+      {%- if template == 'senhal' %}
+      <div class="deco deco-desc-cross">{{ m.cross('#F5C518', sw=4.4) }}</div>
+      {%- elif template == 'mercat' %}
+      <div class="deco deco-sun">{{ m.sun() }}</div>
+      {%- endif %}
+      <div class="desc-card">
+        <div class="desc-visual">
+          <div class="desc-frame">
+            <span class="desc-placeholder">{{ m.icon('image', sw=1.6) }}</span>
+            <img id="object-image" src="" alt="">
+          </div>
+        </div>
+        <div class="desc-body">
+          {{ m.brand(texts, branding, template, cls='desc-brand') }}
+          <div class="desc-chips">
+            <span class="chip chip-main">{% if template == 'mercat' %}As descobèrt !{% else %}As descobèrt{% endif %}</span>
+            <span class="chip chip-cat" id="object-category"></span>
+          </div>
+          <div class="desc-word" id="object-name-oc"></div>
+          <div class="desc-fr"><span class="desc-rule"></span><span class="desc-fr-text" id="object-name-fr"></span></div>
+          <button type="button" class="desc-audio hidden" id="object-audio-btn">
+            <span class="desc-audio-icon">{{ m.icon('speaker', sw=2.2) }}</span>
+            {%- if template != 'mercat' %}{{ m.wave() }}{% endif %}
+            {%- if template == 'senhal' %}<span class="desc-audio-label">Escota !</span>
+            {%- elif template == 'mercat' %}<span class="desc-audio-label">Escota la prononciacion</span>{% endif %}
+          </button>
+          <div class="hint desc-hint">{{ m.key(action_labels.back) }}<span>per contunhar</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Menu « Tria un jòc » ============ -->
+  <section id="screen-menu" class="screen hidden">
+    <div class="stage menu">
+      {%- if template == 'senhal' %}
+      <div class="deco deco-menu-cross">{{ m.cross('#B3141C', sw=4.4) }}</div>
+      {%- elif template == 'mercat' %}
+      <div class="deco scallop"></div>
+      {%- endif %}
+      <header class="topbar">
+        {{ m.brand(texts, branding, template) }}
+        <!-- v0.8 : icones "Cadre fotó" puis Admin -- deux slots de navigation
+             virtuels apres les tuiles (MENU_EXTRA_ICONS cote serveur), dans
+             cet ordre de gauche a droite. Cliquables aussi a la souris. -->
+        <div class="menu-extra-icons">
+          <button type="button" id="menu-diaporama-icon" class="icon-btn" title="Cadre fotó" aria-label="Cadre fotó">{{ m.icon('image', sw=2) }}</button>
+          <button type="button" id="menu-admin-icon" class="icon-btn" title="Administracion" aria-label="Administracion">{{ m.icon('gear', sw=2) }}</button>
+        </div>
+      </header>
+      <div class="menu-heading">
+        <h1 class="menu-title">{{ texts.menu_title }}</h1>
+        {%- if template == 'mercat' %}<span class="menu-subtitle">Choisis un jeu</span>{% endif %}
+      </div>
+      <div class="tiles tiles-menu" id="menu-tiles"></div>
+      <div class="notice hidden" id="menu-notice"></div>
+      <footer class="menu-foot">
+        <!-- v0.5 : poser un objet fonctionne aussi depuis le menu, sans rien
+             choisir (game_controller.on_tag_scanned). -->
+        <div class="nfc-banner">
+          <span class="nfc-banner-icon">{{ m.icon('nfc', sw=2.4) }}</span>
+          <div class="nfc-banner-text">
+            <div class="nfc-banner-oc">{{ texts.nfc_banner_oc }}</div>
+            <div class="nfc-banner-fr">{{ texts.nfc_banner_fr }}</div>
+          </div>
+        </div>
+        <div class="hints">
+          <span class="hint">{{ m.key(m.icon('dpad', sw=0), cls='key-dpad') }}<span>causir</span></span>
+          <span class="hint">{{ m.key(action_labels.select, cls='key-accent') }}<span>validar</span></span>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <!-- Icones des tuiles (clonees par kiosk.js, une par MENU_ACTIVITIES[].id). -->
+  <template id="tile-icons">
+    {%- for activity_id in ['troba_objecte', 'vertadier', 'duel_occitan', 'memoria', 'memoria_vilatge', 'quiz_calandreta'] %}
+    <span data-icon="{{ activity_id }}">{{ m.icon(activity_id, sw=(1.8 if template == 'nuech' else 2.4)) }}</span>
+    {%- endfor %}
+    <span data-icon="_fallback">{{ m.icon('_fallback') }}</span>
+  </template>
+
+  <!-- ============ Tròba l'objècte ============ -->
+  <section id="screen-troba" class="screen hidden">
+    <div class="stage qscreen q-troba">
+      <header class="q-head">
+        <span class="q-eyebrow">Tròba l'objècte</span>
+        <div class="q-steps" id="troba-steps"></div>
+        <div class="q-head-right">
+          <span class="q-count"><span id="troba-progress"></span></span>
+          <span class="q-score" id="troba-score"></span>
+        </div>
+      </header>
+      <main class="q-main">
+        <div class="q-card">
+          <!-- v0.6 : image de l'objet revelee uniquement pendant le retour
+               visuel (jamais avant : ce serait donner la reponse). -->
+          <div class="troba-reveal-circle hidden" id="troba-reveal-circle">
+            <img id="troba-reveal-image" src="" alt="">
+          </div>
+          <div class="q-word" id="troba-word-oc"></div>
+          <div class="q-feedback" id="troba-feedback"></div>
+        </div>
+        <div class="timer-row">
+          <span class="timer-icon">{{ m.icon('timer') }}</span>
+          <div class="timer-track"><div class="timer-bar" id="troba-timer-bar"></div></div>
+        </div>
+      </main>
+      <footer class="q-foot troba-foot">
+        <div class="nfc-banner">
+          <span class="nfc-banner-icon">{{ m.icon('nfc', sw=2.4) }}</span>
+          <div class="nfc-banner-text"><div class="nfc-banner-oc">{{ texts.nfc_banner_oc }}</div></div>
+        </div>
+        <div class="hints"><span class="hint">{{ m.key(action_labels.back) }}<span>per abandonar e tornar al menú</span></span></div>
+      </footer>
+    </div>
+  </section>
+
+  <section id="screen-troba-fin" class="screen hidden">
+    {{ fin_screen('troba', 'Fin de la manche !', "Tròba l'objècte") }}
+  </section>
+
+  <!-- ============ Ven de l'occitan ? (ex-« Vertadièr o Occitan ») ============ -->
+  <section id="screen-vertadier" class="screen hidden">
+    <div class="stage qscreen q-vertadier">
+      <header class="q-head">
+        <span class="q-eyebrow">Ven de l'occitan ?</span>
+        <div class="q-steps" id="vertadier-steps"></div>
+        <div class="q-head-right">
+          <span class="q-quit">{{ m.key(action_labels.back) }}<span>abandonar</span></span>
+          <span class="q-count">Question <span id="vertadier-progress"></span></span>
+          <span class="q-score" id="vertadier-score"></span>
+        </div>
+      </header>
+      <main class="q-main">
+        <p class="q-prompt">Aqueste mot francés ven de l'occitan ?</p>
+        <div class="q-card">
+          <div class="q-word q-word-quoted" id="vertadier-word-fr"></div>
+          <div class="q-feedback" id="vertadier-feedback"></div>
+        </div>
+        <div class="timer-row">
+          <span class="timer-icon">{{ m.icon('timer') }}</span>
+          <div class="timer-track"><div class="timer-bar" id="vertadier-timer-bar"></div></div>
+        </div>
+        <div class="q-explanation" id="vertadier-explanation"></div>
+      </main>
+      <footer class="answers answers-2">
+        <div class="answer answer-a" id="vertadier-answer-true">
+          <span class="answer-key">{{ action_labels.answer_1 }}</span>
+          <div class="answer-text"><div class="answer-title">Vertadièr</div><div class="answer-sub">òc, ven de l'occitan</div></div>
+        </div>
+        <div class="answer answer-b" id="vertadier-answer-false">
+          <span class="answer-key">{{ action_labels.answer_2 }}</span>
+          <div class="answer-text"><div class="answer-title">Fals</div><div class="answer-sub">non, autra origina</div></div>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <section id="screen-vertadier-fin" class="screen hidden">
+    {{ fin_screen('vertadier', 'Fin de la manche !', "Ven de l'occitan ?") }}
+  </section>
+
+  <!-- ============ Duèl Occitan (2 joueurs) ============ -->
+  <section id="screen-duel" class="screen hidden">
+    <div class="stage qscreen q-duel">
+      <header class="q-head">
+        <span class="q-eyebrow">Duèl Occitan</span>
+        <div class="q-steps" id="duel-steps"></div>
+        <div class="q-head-right">
+          <span class="q-quit">{{ m.key(action_labels.back) }}<span>abandonar</span></span>
+          <span class="q-count">Question <span id="duel-progress"></span></span>
+          <span class="q-score q-score-p1">Jogador 1 : <b id="duel-score-p1"></b></span>
+          <span class="q-score q-score-p2">Jogador 2 : <b id="duel-score-p2"></b></span>
+        </div>
+      </header>
+      <main class="q-main">
+        <div class="q-card">
+          <div class="q-word q-sentence" id="duel-question"></div>
+          <div class="q-feedback" id="duel-feedback"></div>
+        </div>
+        <div class="timer-row">
+          <span class="timer-icon">{{ m.icon('timer') }}</span>
+          <div class="timer-track"><div class="timer-bar" id="duel-timer-bar"></div></div>
+        </div>
+        <div class="q-explanation" id="duel-explanation"></div>
+      </main>
+      <!-- v0.10 : chaque joueur a ses propres controles pour A et B (4 actions
+           distinctes) -- les badges A/B des reponses ne sont que des reperes. -->
+      <div class="duel-players">
+        <div class="duel-player duel-player-1" id="duel-player-p1">
+          <div class="duel-player-name">Jogador 1</div>
+          <div class="duel-player-controls">A : {{ action_labels.duel_p1_a }} · B : {{ action_labels.duel_p1_b }}</div>
+          <div class="duel-player-status" id="duel-player-p1-status">…</div>
+        </div>
+        <div class="duel-player duel-player-2" id="duel-player-p2">
+          <div class="duel-player-name">Jogador 2</div>
+          <div class="duel-player-controls">A : {{ action_labels.duel_p2_a }} · B : {{ action_labels.duel_p2_b }}</div>
+          <div class="duel-player-status" id="duel-player-p2-status">…</div>
+        </div>
+      </div>
+      <footer class="answers answers-2 answers-choices">
+        <div class="answer answer-a" id="duel-choice-a">
+          <span class="answer-key">A</span>
+          <div class="answer-text"><div class="answer-title" id="duel-choice-a-label"></div></div>
+        </div>
+        <div class="answer answer-b" id="duel-choice-b">
+          <span class="answer-key">B</span>
+          <div class="answer-text"><div class="answer-title" id="duel-choice-b-label"></div></div>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <section id="screen-duel-fin" class="screen hidden">
+    {% call fin_screen('duel', 'Fin del Duèl !', 'Duèl Occitan', detail_id=True) %}
+      <strong class="fin-detail-main" id="duel-fin-winner"></strong>
+      <span class="fin-detail-sub" id="duel-fin-scores"></span>
+    {% endcall %}
+  </section>
+
+  <!-- ============ Memòria : choix de la taille de partie (v0.9) ============ -->
+  <section id="screen-memoria-choice" class="screen hidden">
+    <div class="stage choice">
+      {%- if template == 'senhal' %}
+      <div class="deco deco-menu-cross">{{ m.cross('#B3141C', sw=4.4) }}</div>
+      {%- elif template == 'mercat' %}
+      <div class="deco scallop"></div>
+      {%- endif %}
+      <header class="topbar">{{ m.brand(texts, branding, template) }}</header>
+      <div class="menu-heading choice-heading">
+        <div class="choice-eyebrow" id="memoria-choice-eyebrow">Memòria</div>
+        <h1 class="menu-title">Quantas cartas ?</h1>
+      </div>
+      <div class="tiles tiles-choice" id="memoria-choice-tiles"></div>
+      <div class="notice hidden" id="memoria-choice-notice"></div>
+      <footer class="menu-foot choice-foot">
+        <div class="hints">
+          <span class="hint">{{ m.key(m.icon('dpad', sw=0), cls='key-dpad') }}<span>causir</span></span>
+          <span class="hint">{{ m.key(action_labels.select, cls='key-accent') }}<span>validar</span></span>
+          <span class="hint">{{ m.key(action_labels.back) }}<span>tornar al menú</span></span>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <!-- ============ Memòria / Memòria vilatge (meme gabarit) ============ -->
+  <section id="screen-memoria" class="screen hidden">
+    <div class="stage memoria">
+      <aside class="mem-side">
+        <div class="mem-titles">
+          {%- if template == 'senhal' %}<span class="mem-cross">{{ m.cross('#B3141C') }}</span>{% endif %}
+          <div class="mem-kicker">francés ↔ occitan</div>
+          <h1 class="mem-title" id="memoria-eyebrow">Memòria</h1>
+          <p class="mem-desc">Tròba lo mot occitan que va amb lo mot francés.</p>
+        </div>
+        <div class="mem-stats">
+          <div class="mem-stat mem-stat-pairs"><span class="mem-stat-label">Parelhs</span><span class="mem-stat-value" id="memoria-progress"></span></div>
+          <div class="mem-stat mem-stat-attempts"><span class="mem-stat-label">Ensages</span><span class="mem-stat-value" id="memoria-attempts"></span></div>
+        </div>
+        <div class="hints mem-hints">
+          <span class="hint">{{ m.key(m.icon('dpad', sw=0), cls='key-dpad') }}<span>causir</span></span>
+          <span class="hint">{{ m.key(action_labels.select, cls='key-accent') }}<span>revirar</span></span>
+          <span class="hint">{{ m.key(action_labels.back, cls='key-alt') }}<span>abandonar</span></span>
+        </div>
+      </aside>
+      <div class="mem-board">
+        <div class="mem-feedback" id="memoria-feedback"></div>
+        <!-- grille construite par kiosk.js (colonnes fixes : voir
+             config.MEMORIA_GRID_COLUMNS, navigation haut/bas cote serveur) -->
+        <div class="memoria-grid" id="memoria-grid" style="--mem-cols: {{ memoria_grid_columns }}"></div>
+      </div>
+    </div>
+  </section>
+  <template id="memoria-card-back-tpl">
+    <div class="memoria-card-face memoria-card-back">
+      {%- if template == 'senhal' %}{{ m.cross('#F5C518', sw=5) }}
+      {%- elif template == 'mercat' %}<span class="back-medallion">{{ m.cross('#B4472A', sw=5) }}</span>
+      {%- else %}{{ m.constellation() }}{% endif %}
+    </div>
+  </template>
+
+  <section id="screen-memoria-fin" class="screen hidden">
+    {% call fin_screen('memoria', 'Fin de la partida !', 'Memòria', detail_id=True, score_id='memoria-fin-attempts') %}
+      <span class="fin-detail-sub" id="memoria-fin-score"></span>
+    {% endcall %}
+  </section>
+
+  <!-- ============ Quiz Calandreta (3 reponses) ============ -->
+  <section id="screen-quiz" class="screen hidden">
+    <div class="stage qscreen q-quiz">
+      <header class="q-head">
+        <span class="q-eyebrow">Quiz Calandreta</span>
+        <div class="q-steps" id="quiz-steps"></div>
+        <div class="q-head-right">
+          <span class="q-quit">{{ m.key(action_labels.back) }}<span>abandonar</span></span>
+          <span class="q-count">Question <span id="quiz-progress"></span></span>
+          <span class="q-score" id="quiz-score"></span>
+        </div>
+      </header>
+      <main class="q-main">
+        <div class="q-card">
+          <div class="q-word q-sentence" id="quiz-question"></div>
+          <div class="q-feedback" id="quiz-feedback"></div>
+        </div>
+        <div class="timer-row">
+          <span class="timer-icon">{{ m.icon('timer') }}</span>
+          <div class="timer-track"><div class="timer-bar" id="quiz-timer-bar"></div></div>
+        </div>
+        <div class="q-explanation" id="quiz-explanation"></div>
+      </main>
+      <footer class="answers answers-3 answers-choices">
+        <div class="answer answer-a" id="quiz-choice-a">
+          <span class="answer-key">{{ action_labels.answer_1 }}</span>
+          <div class="answer-text"><div class="answer-title" id="quiz-choice-a-label"></div></div>
+        </div>
+        <div class="answer answer-b" id="quiz-choice-b">
+          <span class="answer-key">{{ action_labels.answer_2 }}</span>
+          <div class="answer-text"><div class="answer-title" id="quiz-choice-b-label"></div></div>
+        </div>
+        <div class="answer answer-c" id="quiz-choice-c">
+          <span class="answer-key">{{ action_labels.answer_3 }}</span>
+          <div class="answer-text"><div class="answer-title" id="quiz-choice-c-label"></div></div>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <section id="screen-quiz-fin" class="screen hidden">
+    {{ fin_screen('quiz', 'Fin del Quiz !', 'Quiz Calandreta') }}
+  </section>
+
+  <!-- 14/09/2026 : socket.io servi EN LOCAL (static/js/socket.io.min.js) --
+       la borne doit fonctionner sans acces web. -->
+  <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+  <script>
+    window.MALETA_INITIAL_STATE = {{ initial_state | tojson }};
+    // v0.8 : mapping clavier {touche: [actions]} (Configuration > Manèta & clavièr).
+    window.MALETA_KEY_MAP = {{ key_map | tojson }};
+    // v1.1 : modele d'interface actif (Senhal / Mercat / Nuèch).
+    window.MALETA_TEMPLATE = {{ template | tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='js/kiosk.js') }}"></script>
+</body>
+</html>

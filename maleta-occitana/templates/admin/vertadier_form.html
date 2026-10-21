@@ -1,0 +1,38 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Modifier' if word else 'Ajouter' }} un mot{% endblock %}
+{% block content %}
+<h1>{{ 'Modifier' if word else 'Ajouter' }} un mot — Ven de l'occitan ?</h1>
+
+<form method="post" class="object-form">
+  <label>
+    Mot ou expression française
+    <input type="text" name="word_fr" value="{{ word.word_fr if word else '' }}" required
+           placeholder="ex. « cassoulet »">
+  </label>
+  <label class="checkbox-label">
+    <input type="checkbox" name="is_occitan" {{ 'checked' if word and word.is_occitan else '' }}>
+    Vient réellement de l'occitan (« vertadièr »)
+  </label>
+  <label>
+    Explication (affichée après la réponse du visiteur)
+    <input type="text" name="explanation" value="{{ word.explanation if word else '' }}"
+           placeholder="courte explication, sourcée">
+  </label>
+  <label>
+    Source utilisée pour vérifier
+    <input type="text" name="source" value="{{ word.source if word else '' }}"
+           placeholder="ex. CNRTL, Institut d'Estudis Occitan...">
+  </label>
+  {% if word %}
+  <label class="checkbox-label">
+    <input type="checkbox" name="active" {{ 'checked' if word.active else '' }}>
+    Actif (visible dans le jeu)
+  </label>
+  {% endif %}
+
+  <div class="form-actions">
+    <button type="submit" class="button">Enregistrer</button>
+    <a href="{{ url_for('admin.vertadier_list') }}">Annuler</a>
+  </div>
+</form>
+{% endblock %}

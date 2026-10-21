@@ -1,0 +1,83 @@
+{% extends "admin/base.html" %}
+{% block title %}Médiathèque{% endblock %}
+{% block content %}
+<h1>Médiathèque</h1>
+
+<div class="disk-card">
+  <div class="disk-card-label">Espace disque</div>
+  <div class="disk-bar">
+    <div class="disk-bar-used" style="width: {{ disk.used_percent }}%;"></div>
+  </div>
+  <div class="disk-card-detail">
+    {{ format_bytes(disk.free_bytes) }} libres sur {{ format_bytes(disk.total_bytes) }}
+    ({{ disk.used_percent }}% utilisé)
+  </div>
+</div>
+
+<p class="muted">
+  Tous les fichiers présents sur le disque (images/audio d'objets, photos et
+  vidéos du diaporama, logo/croix personnalisés). Un point
+  <span class="dot dot-used"></span> vert signifie que le fichier est
+  référencé quelque part (objet, média du diaporama, bannière) ; un point
+  <span class="dot dot-orphan"></span> gris signale un fichier présent sur le
+  disque mais qui n'est plus utilisé nulle part — un bon candidat à
+  supprimer pour libérer de la place.
+  {% if nb_orphans %}
+    <strong>{{ nb_orphans }} fichier(s) non utilisé(s)</strong> actuellement.
+  {% else %}
+    Aucun fichier orphelin actuellement.
+  {% endif %}
+</p>
+
+<table class="admin-table">
+  <thead>
+    <tr>
+      <th>Statut</th>
+      <th>Aperçu</th>
+      <th>Catégorie</th>
+      <th>Fichier</th>
+      <th>Taille</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td><span class="dot {{ 'dot-used' if item.used else 'dot-orphan' }}" title="{{ 'utilisé' if item.used else 'non utilisé' }}"></span></td>
+      <td>
+        {% if item.preview_kind == 'image' %}
+          <img class="mediatheque-thumb" src="{{ item.url }}" alt="">
+        {% elif item.preview_kind == 'audio' %}
+          <audio class="mediatheque-audio" src="{{ item.url }}" controls preload="none"></audio>
+        {% elif item.preview_kind == 'video' %}
+          <video class="mediatheque-thumb" src="{{ item.url }}" muted preload="metadata"></video>
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td>{{ item.category }}</td>
+      <td>{{ item.filename }}</td>
+      <td>{{ format_bytes(item.size_bytes) }}</td>
+      <td>
+        {# v1.03 : attribut entre apostrophes -- `tojson` produit une chaine
+           entre guillemets doubles, qui refermait l'attribut onsubmit="..." :
+           la confirmation ne s'affichait jamais et le fichier etait supprime
+           au premier clic. `tojson` echappe deja les apostrophes. #}
+        <form method="post" action="{{ url_for('admin.mediatheque_delete') }}"
+              onsubmit='return confirm({{ (
+                'Supprimer definitivement « ' + item.filename + ' » ?\n\nCe fichier est encore utilisé (objet, média du diaporama ou bannière) : le supprimer cassera son affichage jusqu\'à ce que vous choisissiez un autre fichier.'
+                if item.used else
+                'Supprimer definitivement « ' + item.filename + ' » ?'
+              ) | tojson }});'>
+          <input type="hidden" name="key" value="{{ item.key }}">
+          <input type="hidden" name="filename" value="{{ item.filename }}">
+          <button type="submit" class="link-danger" title="Supprimer" aria-label="Supprimer {{ item.filename }}">🗑</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">Aucun fichier média sur le disque pour l'instant.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

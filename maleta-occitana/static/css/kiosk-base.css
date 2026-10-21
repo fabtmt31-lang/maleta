@@ -1,0 +1,314 @@
+/* v1.1 -- base commune aux 3 modeles d'interface de la borne (Senhal,
+   Mercat, Nuèch). Ce fichier ne contient QUE la mecanique partagee : la
+   « scene » 1280x720 mise a l'echelle, l'affichage/masquage des ecrans, le
+   diaporama et quelques briques communes (badges de touche, grilles). Toute
+   l'apparence (couleurs, polices, mise en page de chaque ecran) est dans
+   kiosk-senhal.css / kiosk-mercat.css / kiosk-nuech.css, un seul des trois
+   etant charge selon le modele choisi dans Configuration.
+
+   Remplace kiosk.css (v0.1 a v1.03). */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  /* v1.02 : la borne n'a pas de souris en usage normal. */
+  cursor: none;
+}
+
+.hidden { display: none !important; }
+
+h1, p { margin: 0; }
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+img { display: block; }
+
+/* --- Ecrans + scene ---------------------------------------------------------
+   Chaque .screen occupe tout l'ecran ; sa .stage est dessinee en
+   « pixels de maquette » (1280x720 au minimum) puis mise a l'echelle par le
+   script de kiosk.html (--stage-scale). Sur un ecran plus large ou plus haut
+   que du 16:9, la scene s'agrandit dans ce sens (--stage-w/--stage-h) : les
+   mises en page en flex/grid absorbent la marge, sans bande noire. */
+.screen {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--stage-w, 1280px);
+  height: var(--stage-h, 720px);
+  transform: scale(var(--stage-scale, 1));
+  transform-origin: 0 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.deco {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.deco > svg,
+.crotz-svg,
+.constellation-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.icon {
+  display: block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+/* --- Marque (croix + nom + logo d'ecole) ------------------------------------ */
+.brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.brand-crotz {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+
+.brand-crotz-img { object-fit: contain; }
+
+.brand-logo {
+  height: 52px;
+  width: auto;
+  max-width: 200px;
+  object-fit: contain;
+  margin-left: 6px;
+}
+
+/* --- Badges de touche + barres d'aide ---------------------------------------
+   Le texte du badge est celui saisi dans Configuration > Manèta & clavièr
+   (ex. "A", "Select", "Entrée") : largeur variable, jamais tronque. */
+.key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  flex: none;
+}
+
+.key .icon { width: 18px; height: 18px; }
+.key-dpad .icon { width: 22px; height: 22px; }
+
+.hints {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+/* --- Tuiles (menu + choix Memòria) : construites par kiosk.js -------------- */
+.tile { position: relative; min-width: 0; }
+.tile-icon { display: flex; align-items: center; justify-content: center; flex: none; }
+.tile-text { display: flex; flex-direction: column; min-width: 0; }
+.tile-label-oc { display: block; overflow: hidden; }
+.tile-label-fr { display: block; }
+
+/* --- Ecrans de jeu (question + minuteur + reponses) ------------------------ */
+.q-card { position: relative; }
+.q-word { overflow: hidden; overflow-wrap: normal; word-break: normal; }
+.q-word-quoted::before { content: "« "; }
+.q-word-quoted::after { content: " »"; }
+.q-feedback:empty,
+.q-explanation:empty,
+.mem-feedback:empty { display: none; }
+.timer-track { position: relative; overflow: hidden; }
+.timer-bar { height: 100%; width: 100%; }
+.answers { display: flex; flex: none; }
+.answer { position: relative; display: flex; align-items: center; min-width: 0; flex: 1 1 0; transition: opacity .2s; }
+.answer-text { min-width: 0; flex: 1; }
+.answer-title { overflow: hidden; }
+.answer.is-dim::after {
+  /* reponse ecartee : voile sombre plutot que transparence (qui laisserait
+     voir le fond de la scene a travers le bloc). */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--dim-veil, rgba(20, 12, 10, .55));
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* --- Memòria ---------------------------------------------------------------- */
+.memoria-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--mem-cols, 6), minmax(0, 1fr));
+  width: 100%;
+}
+.memoria-card { position: relative; min-width: 0; aspect-ratio: 3 / 4; }
+.memoria-grid-tall { height: 100%; grid-template-rows: repeat(var(--mem-rows, 4), minmax(0, 1fr)); }
+.memoria-grid-tall .memoria-card { aspect-ratio: auto; }
+.memoria-card-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+}
+.memoria-card-back > svg,
+.memoria-card-back .back-medallion { width: 46%; max-width: 92px; height: auto; aspect-ratio: 1; }
+.memoria-card-text {
+  display: block;
+  width: 100%;
+  max-height: 72%;
+  padding: 0 8px;
+  overflow: hidden;
+  overflow-wrap: normal;
+}
+.memoria-card-check { width: 30px; height: 30px; }
+
+/* --- Ecrans de fin ---------------------------------------------------------- */
+.fin-stars { display: none; }
+.fin-score { position: relative; }
+.fin-score-inner { position: relative; z-index: 1; }
+.fin-score-value { display: block; white-space: nowrap; overflow: hidden; }
+.fin-detail:empty { display: none; }
+.fin-detail-main, .fin-detail-sub { display: block; }
+.fin-hint { display: flex; align-items: center; gap: 12px; }
+
+/* --- Message ponctuel (ex. « Pas encara de mots... ») ---------------------- */
+.notice {
+  position: absolute;
+  left: 50%;
+  bottom: 118px;
+  transform: translateX(-50%);
+  z-index: 20;
+  max-width: 900px;
+  text-align: center;
+}
+
+/* --- Diaporama « Cadre fotó & vidèo » : plein ecran, hors scene ------------ */
+#screen-diaporama { background: #000; }
+
+.diaporama-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* v1.03 : une image plus petite que l'ecran est agrandie, sans deformation. */
+  object-fit: contain;
+}
+
+.diaporama-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 4vh;
+  transform: translateX(-50%);
+  max-width: 80vw;
+  padding: .55em 1.3em;
+  border-radius: 999px;
+  font-size: clamp(16px, 2.2vw, 34px);
+  font-weight: 700;
+  text-align: center;
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+}
+
+.diaporama-exit-hint {
+  position: absolute;
+  top: 2.5vh;
+  right: 2.5vw;
+  display: flex;
+  align-items: center;
+  gap: .55em;
+  padding: .5em 1em;
+  border-radius: 999px;
+  font-size: clamp(12px, 1.2vw, 18px);
+  font-weight: 700;
+  background: rgba(0, 0, 0, .45);
+  color: #fff;
+  opacity: .85;
+}
+
+.diaporama-exit-hint .icon { width: 1.25em; height: 1.25em; }
+
+/* --- Animations partagees ---------------------------------------------------- */
+@keyframes maleta-pulse {
+  0% { transform: scale(.85); opacity: .9; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+
+@keyframes maleta-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes maleta-wave {
+  0% { opacity: 0; transform: scale(.8); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+@keyframes maleta-ring {
+  0% { transform: scale(.7); opacity: .8; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+@keyframes maleta-twinkle {
+  0%, 100% { opacity: .3; }
+  50% { opacity: 1; }
+}
+
+@keyframes maleta-pop {
+  0% { transform: scale(.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

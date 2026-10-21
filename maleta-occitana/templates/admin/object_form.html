@@ -1,0 +1,180 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Modifier' if obj else 'Ajouter' }} un objet{% endblock %}
+{% block content %}
+<h1>{{ 'Modifier' if obj else 'Ajouter' }} un objet</h1>
+
+<form method="post" enctype="multipart/form-data" class="object-form">
+  <label>
+    Mot occitan
+    <input type="text" name="name_oc" value="{{ draft.name_oc if draft else (obj.name_oc if obj else '') }}" required>
+  </label>
+  <label>
+    Traduction française
+    <input type="text" name="name_fr" value="{{ draft.name_fr if draft else (obj.name_fr if obj else '') }}" required>
+  </label>
+  <label>
+    Catégorie
+    <input type="text" name="category" value="{{ draft.category if draft else (obj.category if obj else '') }}" placeholder="nourriture, animaux, nature...">
+  </label>
+  <label>
+    Image
+    {% if obj and obj.image_filename %}
+      <div class="current-file">actuelle : {{ obj.image_filename }}</div>
+    {% endif %}
+    <input type="file" name="image" accept="image/*" id="image-file-input">
+  </label>
+  {% if obj and obj.image_filename %}
+  <!-- v1.03 : retirer l'image sans devoir en choisir une autre -->
+  <label class="checkbox-label">
+    <input type="checkbox" name="remove_image"> Retirer l'image actuelle
+  </label>
+  {% endif %}
+  <div class="media-picker-row">
+    <button type="button" class="media-picker-btn" data-media-picker="object_image"
+            data-file-input="image-file-input" data-hidden-input="image-existing-input"
+            data-preview="image-existing-preview">Choisir dans la médiathèque</button>
+    <input type="hidden" name="existing_image_filename" id="image-existing-input">
+    <span class="media-picker-preview" id="image-existing-preview"></span>
+  </div>
+  <label>
+    Audio (prononciation)
+    {% if obj and obj.audio_filename %}
+      <div class="current-file">actuel : {{ obj.audio_filename }}</div>
+    {% endif %}
+    <input type="file" name="audio" accept="audio/*" id="audio-file-input">
+  </label>
+  {% if obj and obj.audio_filename %}
+  <label class="checkbox-label">
+    <input type="checkbox" name="remove_audio"> Retirer le son actuel
+  </label>
+  {% endif %}
+  <div class="media-picker-row">
+    <button type="button" class="media-picker-btn" data-media-picker="object_audio"
+            data-file-input="audio-file-input" data-hidden-input="audio-existing-input"
+            data-preview="audio-existing-preview">Choisir dans la médiathèque</button>
+    <input type="hidden" name="existing_audio_filename" id="audio-existing-input">
+    <span class="media-picker-preview" id="audio-existing-preview"></span>
+  </div>
+  {% if obj %}
+  <label class="checkbox-label">
+    <input type="checkbox" name="active" {{ 'checked' if obj.active else '' }}>
+    Actif (visible dans le jeu)
+  </label>
+  {% endif %}
+
+  <div class="form-actions">
+    <button type="submit" class="button">Enregistrer</button>
+    <a href="{{ url_for('admin.objects_list') }}">Annuler</a>
+  </div>
+</form>
+
+{% if obj %}
+<section class="tag-section">
+  <h2>Tags NFC associés</h2>
+  <ul class="tag-list" id="tag-list">
+    {% for tag in tags %}
+      <li>
+        <code>{{ tag.uid }}</code>
+        <form method="post" action="{{ url_for('admin.unpair_tag', object_id=obj.id, uid=tag.uid) }}">
+          <button type="submit" class="link-danger">dissocier</button>
+        </form>
+      </li>
+    {% else %}
+      <li class="muted">Aucun tag associé pour l'instant.</li>
+    {% endfor %}
+  </ul>
+
+  <div id="pairing-idle">
+    <button type="button" class="button" id="start-pairing">Associer un nouveau tag</button>
+    <p class="muted hidden" id="pairing-expired">Délai dépassé sans tag posé — clique à nouveau pour recommencer.</p>
+  </div>
+
+  <div id="pairing-active" class="hidden">
+    <p>Posez le tag NFC sur le lecteur... <span class="muted" id="pairing-countdown"></span></p>
+    <button type="button" class="link-danger" id="cancel-pairing">Annuler</button>
+    {% if is_simulated %}
+    <form id="simulate-form">
+      <input type="text" id="simulate-uid" placeholder="UID a simuler (optionnel)">
+      <button type="submit" class="button">Simuler un scan (mode dev)</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+<script>
+  const objectId = {{ obj.id }};
+  const startBtn = document.getElementById("start-pairing");
+  const pairingIdle = document.getElementById("pairing-idle");
+  const pairingActive = document.getElementById("pairing-active");
+  const simulateForm = document.getElementById("simulate-form");
+  let pollTimer = null;
+  let pairingDeadline = null;
+  const expiredMsg = document.getElementById("pairing-expired");
+  const countdownEl = document.getElementById("pairing-countdown");
+
+  // v1.03 : l'ecoute du lecteur expire cote serveur (quelques dizaines de
+  // secondes) et s'annule quand on clique "Annuler" ou qu'on quitte la page --
+  // avant, elle restait armee et detournait le tag du visiteur suivant.
+  function stopPairingUi(expired) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+    pairingDeadline = null;
+    pairingActive.classList.add("hidden");
+    pairingIdle.classList.remove("hidden");
+    expiredMsg.classList.toggle("hidden", !expired);
+  }
+
+  function cancelPairing() {
+    // sendBeacon : part meme quand la page est en train de se fermer
+    navigator.sendBeacon(`/admin/objects/${objectId}/pair_tag/cancel`);
+  }
+
+  startBtn.addEventListener("click", async () => {
+    const res = await fetch(`/admin/objects/${objectId}/pair_tag/start`, { method: "POST" });
+    if (!res.ok) return;
+    const data = await res.json();
+    pairingDeadline = Date.now() + (data.timeout_seconds || 60) * 1000;
+    expiredMsg.classList.add("hidden");
+    pairingIdle.classList.add("hidden");
+    pairingActive.classList.remove("hidden");
+    pollTimer = setInterval(pollStatus, 1000);
+    pollStatus();
+  });
+
+  document.getElementById("cancel-pairing").addEventListener("click", () => {
+    cancelPairing();
+    stopPairingUi(false);
+  });
+
+  window.addEventListener("pagehide", () => {
+    if (pollTimer) cancelPairing();
+  });
+
+  if (simulateForm) {
+    simulateForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const uid = document.getElementById("simulate-uid").value;
+      const body = new URLSearchParams();
+      if (uid) body.set("uid", uid);
+      await fetch(`/admin/objects/${objectId}/pair_tag/simulate`, { method: "POST", body });
+    });
+  }
+
+  async function pollStatus() {
+    if (pairingDeadline) {
+      const left = Math.max(0, Math.round((pairingDeadline - Date.now()) / 1000));
+      countdownEl.textContent = "(" + left + " s)";
+    }
+    const res = await fetch(`/admin/objects/${objectId}/pair_tag/status`);
+    const data = await res.json();
+    if (!data.waiting && data.paired_uid) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      window.location.reload();
+    } else if (!data.waiting) {
+      stopPairingUi(true);
+    }
+  }
+</script>
+{% endif %}
+{% endblock %}

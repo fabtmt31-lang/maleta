@@ -1,0 +1,136 @@
+{#- v1.1 : elements graphiques partages par les 3 modeles d'interface de la
+    borne (Senhal, Mercat, Nuèch). Dessins repris des maquettes « La Maleta
+    Occitana — 3 directions » fournies par Fabien. Tout est en SVG inline :
+    aucun fichier externe, aucune dependance reseau. -#}
+
+{#- Croix occitane « en traits » (12 pommettes), viewBox 0 0 100 100. -#}
+{% macro cross_paths(color='currentColor', sw=4.4) -%}
+  <g fill="none" stroke="{{ color }}" stroke-width="{{ sw }}" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M31.6 16.8Q42 16 50 6Q58 16 68.4 16.8"/><path d="M68.4 16.8Q56.2 30.5 53.6 46.4Q69.5 43.8 83.2 31.6"/>
+    <path d="M83.2 31.6Q84 42 94 50Q84 58 83.2 68.4"/><path d="M83.2 68.4Q69.5 56.2 53.6 53.6Q56.2 69.5 68.4 83.2"/>
+    <path d="M68.4 83.2Q58 84 50 94Q42 84 31.6 83.2"/><path d="M31.6 83.2Q43.8 69.5 46.4 53.6Q30.5 56.2 16.8 68.4"/>
+    <path d="M16.8 68.4Q16 58 6 50Q16 42 16.8 31.6"/><path d="M16.8 31.6Q30.5 43.8 46.4 46.4Q43.8 30.5 31.6 16.8"/>
+  </g>
+  <g fill="{{ color }}">
+    <circle cx="50" cy="6" r="4.1"/><circle cx="31.6" cy="16.8" r="4.1"/><circle cx="68.4" cy="16.8" r="4.1"/>
+    <circle cx="94" cy="50" r="4.1"/><circle cx="83.2" cy="31.6" r="4.1"/><circle cx="83.2" cy="68.4" r="4.1"/>
+    <circle cx="50" cy="94" r="4.1"/><circle cx="68.4" cy="83.2" r="4.1"/><circle cx="31.6" cy="83.2" r="4.1"/>
+    <circle cx="6" cy="50" r="4.1"/><circle cx="16.8" cy="68.4" r="4.1"/><circle cx="16.8" cy="31.6" r="4.1"/>
+  </g>
+{%- endmacro %}
+
+{% macro cross(color='currentColor', cls='', sw=4.4, size=None) -%}
+<svg class="crotz-svg {{ cls }}" viewBox="0 0 100 100" {% if size %}width="{{ size }}" height="{{ size }}"{% endif %} aria-hidden="true">
+{{ cross_paths(color, sw) }}
+</svg>
+{%- endmacro %}
+
+{#- Croix « constellation » du modele Nuèch, viewBox 0 0 200 200. -#}
+{% macro constellation(color='#E8B54A', cls='', sw=1, line_opacity=0.55) -%}
+<svg class="constellation-svg {{ cls }}" viewBox="0 0 200 200" aria-hidden="true">
+  <g fill="none" stroke="{{ color }}" stroke-width="{{ sw }}" opacity="{{ line_opacity }}">
+    <path d="M63.2 33.6Q84 32 100 12Q116 32 136.8 33.6"/><path d="M136.8 33.6Q112.4 61 107.2 92.8Q139 87.6 166.4 63.2"/>
+    <path d="M166.4 63.2Q168 84 188 100Q168 116 166.4 136.8"/><path d="M166.4 136.8Q139 112.4 107.2 107.2Q112.4 139 136.8 166.4"/>
+    <path d="M136.8 166.4Q116 168 100 188Q84 168 63.2 166.4"/><path d="M63.2 166.4Q87.6 139 92.8 107.2Q61 112.4 33.6 136.8"/>
+    <path d="M33.6 136.8Q32 116 12 100Q32 84 33.6 63.2"/><path d="M33.6 63.2Q61 87.6 92.8 92.8Q87.6 61 63.2 33.6"/>
+  </g>
+  <g fill="{{ color }}">
+    <circle cx="100" cy="12" r="4.2"/><circle cx="63.2" cy="33.6" r="4.2"/><circle cx="136.8" cy="33.6" r="4.2"/>
+    <circle cx="188" cy="100" r="4.2"/><circle cx="166.4" cy="63.2" r="4.2"/><circle cx="166.4" cy="136.8" r="4.2"/>
+    <circle cx="100" cy="188" r="4.2"/><circle cx="136.8" cy="166.4" r="4.2"/><circle cx="63.2" cy="166.4" r="4.2"/>
+    <circle cx="12" cy="100" r="4.2"/><circle cx="33.6" cy="136.8" r="4.2"/><circle cx="33.6" cy="63.2" r="4.2"/>
+    <circle cx="105.1" cy="94.9" r="2"/><circle cx="105.1" cy="105.1" r="2"/><circle cx="94.9" cy="105.1" r="2"/><circle cx="94.9" cy="94.9" r="2"/>
+  </g>
+</svg>
+{%- endmacro %}
+
+{#- Icones au trait (viewBox 0 0 24 24, couleur = currentColor). -#}
+{% macro icon(name, sw=2.4, cls='') -%}
+<svg class="icon icon-{{ name }} {{ cls }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{ sw }}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == 'troba_objecte' or name == 'search' -%}<circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/>
+{%- elif name == 'vertadier' or name == 'check' -%}<path d="M4 12.5l5 5L20 6.5"/>
+{%- elif name == 'duel_occitan' or name == 'people' -%}<circle cx="8" cy="8" r="3"/><circle cx="16.5" cy="8" r="3"/><path d="M2.5 20c0-3.2 2.5-5.5 5.5-5.5s5.5 2.3 5.5 5.5"/><path d="M14.5 14.6c.6-.1 1.3-.1 2-.1 3 0 5 2.3 5 5.5"/>
+{%- elif name == 'memoria' or name == 'cards' -%}<rect x="3" y="5" width="10" height="14" rx="2"/><path d="M15 5.5l4.2 1.1a2 2 0 0 1 1.4 2.4l-2.6 9.7a2 2 0 0 1-2.4 1.4L15 19.8"/>
+{%- elif name == 'memoria_vilatge' or name == 'houses' -%}<path d="M3 20.5h18"/><path d="M4.5 20.5V11l5-4.5 5 4.5v9.5"/><path d="M14.5 20.5V14l3-3 3 3v6.5"/><path d="M8 20.5v-4h3v4"/>
+{%- elif name == 'quiz_calandreta' or name == 'question' -%}<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.7 2.4c-.7.3-1.2.9-1.2 1.6v.5"/><path d="M12 17.2h.01"/>
+{%- elif name == 'image' -%}<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="M21 15l-5-5L5 19"/>
+{%- elif name == 'gear' -%}<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+{%- elif name == 'speaker' -%}<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18.5 6.2a8 8 0 0 1 0 11.6"/>
+{%- elif name == 'timer' -%}<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2.5h5"/>
+{%- elif name == 'nfc' -%}<path d="M6 8a8 8 0 0 1 0 8"/><path d="M9.5 5a12 12 0 0 1 0 14"/><path d="M13 2.5a16 16 0 0 1 0 19"/><path d="M3 11a4 4 0 0 1 0 2"/>
+{%- elif name == 'close' -%}<path d="M6 6l12 12M18 6L6 18"/>
+{%- elif name == 'dpad' -%}<path d="M12 3l3 4H9z" fill="currentColor" stroke="none"/><path d="M12 21l-3-4h6z" fill="currentColor" stroke="none"/><path d="M3 12l4-3v6z" fill="currentColor" stroke="none"/><path d="M21 12l-4 3V9z" fill="currentColor" stroke="none"/>
+{%- elif name == 'tag' -%}<path d="M3 12V4.5A1.5 1.5 0 0 1 4.5 3H12l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/>
+{%- elif name == 'folder' -%}<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+{%- elif name == 'external' -%}<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>
+{%- elif name == 'logout' -%}<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 16l-4-4 4-4"/><path d="M6 12h10"/>
+{%- elif name == 'plus' -%}<path d="M12 5v14M5 12h14"/>
+{%- elif name == 'database' -%}<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>
+{%- elif name == 'grid' -%}<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>
+{%- elif name == 'star' -%}<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="currentColor"/>
+{%- else -%}<circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}
+
+{#- Ligne « marque » : croix (ou image de croix personnalisee) + nom de la
+    borne + logo de l'ecole s'il y en a un (Configuration > Bannière). -#}
+{% macro brand(texts, branding, template, cls='') -%}
+<div class="brand {{ cls }}">
+  {%- if branding.crotz_filename %}
+  <img class="brand-crotz brand-crotz-img" src="{{ url_for('media_branding_file', filename=branding.crotz_filename) }}" alt="">
+  {%- else %}
+  <span class="brand-crotz">{{ cross() }}</span>
+  {%- endif %}
+  <span class="brand-name">{{ texts.brand_name }}</span>
+  {%- if branding.logo_filename %}
+  <img class="brand-logo" src="{{ url_for('media_branding_file', filename=branding.logo_filename) }}" alt="Logo de l'escòla">
+  {%- endif %}
+</div>
+{%- endmacro %}
+
+{#- Badge de touche/bouton (texte libre saisi dans Configuration). -#}
+{% macro key(label, cls='') -%}
+<span class="key {{ cls }}">{{ label }}</span>
+{%- endmacro %}
+
+{#- Petite forme d'onde decorative (Descobèrta). -#}
+{% macro wave(cls='') -%}
+<span class="wave {{ cls }}" aria-hidden="true">{% for h in [10, 18, 30, 16, 24, 34, 20, 12, 26, 14, 8] %}<i style="height:{{ h }}px"></i>{% endfor %}</span>
+{%- endmacro %}
+
+{#- Etoile/sceau du modele Senhal (score de fin de manche). -#}
+{% macro starburst(cls='') -%}
+<svg class="starburst {{ cls }}" viewBox="0 0 300 300" aria-hidden="true">
+  <polygon points="290,150 258.2,179 271.2,220 229.2,229.2 220,271.2 179,258.2 150,290 121,258.2 80,271.2 70.8,229.2 28.8,220 41.8,179 10,150 41.8,121 28.8,80 70.8,70.8 80,28.8 121,41.8 150,10 179,41.8 220,28.8 229.2,70.8 271.2,80 258.2,121" fill="#F5C518" stroke="#1C1210" stroke-width="5" stroke-linejoin="round"/>
+</svg>
+{%- endmacro %}
+
+{#- Collines + soleil du modele Mercat. -#}
+{% macro hills(cls='') -%}
+<svg class="hills {{ cls }}" viewBox="0 0 1280 220" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0 120 C 180 40, 360 60, 520 110 S 860 170, 1020 90 S 1220 40, 1280 70 V220 H0 Z" fill="#F2B33D" opacity=".55"/>
+  <path d="M0 150 C 220 90, 420 120, 600 150 S 980 200, 1280 120 V220 H0 Z" fill="#55612A"/>
+  <path d="M0 190 C 260 150, 520 170, 760 190 S 1120 210, 1280 180 V220 H0 Z" fill="#B4472A"/>
+</svg>
+{%- endmacro %}
+
+{% macro sun(cls='') -%}
+<svg class="sun {{ cls }}" viewBox="0 0 200 200" aria-hidden="true">
+  {%- for a in range(0, 360, 20) %}<rect x="97" y="4" width="6" height="26" rx="3" fill="#F2B33D" transform="rotate({{ a }} 100 100)"/>{% endfor %}
+  <circle cx="100" cy="100" r="58" fill="#F2B33D"/>
+</svg>
+{%- endmacro %}
+
+{% macro suitcase(cls='') -%}
+<svg class="suitcase {{ cls }}" viewBox="0 0 300 246" aria-hidden="true">
+  <path d="M110 60 V38 a14 14 0 0 1 14 -14 h52 a14 14 0 0 1 14 14 V60" fill="none" stroke="#2B1D14" stroke-width="12" stroke-linecap="round"/>
+  <rect x="14" y="58" width="272" height="176" rx="34" fill="#B4472A"/>
+  <rect x="14" y="58" width="272" height="60" rx="30" fill="#8E3720"/>
+  <rect x="14" y="100" width="272" height="18" fill="#8E3720"/>
+  <rect x="62" y="58" width="16" height="176" fill="#F2B33D"/>
+  <rect x="222" y="58" width="16" height="176" fill="#F2B33D"/>
+  <circle cx="150" cy="170" r="40" fill="#FFFBF3"/>
+  <g transform="translate(118 138) scale(.64)">{{ cross_paths("#B4472A") }}</g>
+</svg>
+{%- endmacro %}

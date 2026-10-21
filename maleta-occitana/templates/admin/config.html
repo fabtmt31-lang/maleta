@@ -1,0 +1,420 @@
+{% extends "admin/base.html" %}
+{% block title %}Configuration{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">Sistèma</div>
+    <h1>Configuracion</h1>
+    <p class="muted" style="margin-top:4px">Tout ce qui se règle une fois puis s'oublie : accès, apparence, manette.</p>
+  </div>
+</div>
+
+<!-- v0.5 (refonte visuelle, maquette 1k) : les réglages tiennent désormais
+     dans une grille de cartes plutôt que des sections empilées -- même
+     contenu et mêmes formulaires qu'avant, seule la mise en page change. -->
+<div class="cards-grid">
+
+  <div class="card elev">
+    <div class="card-kicker">Accès</div>
+    <div class="card-title">Còdi PIN</div>
+    <p class="muted" style="margin:0">Demandé à l'ouverture de l'admin depuis la borne.</p>
+    <form method="post" action="{{ url_for('admin.config_password') }}" class="object-form" style="background:none;padding:0;max-width:none;">
+      <label>
+        Code actuel
+        <input type="text" inputmode="numeric" name="current_pin" required>
+      </label>
+      <label>
+        Nouveau code
+        <input type="text" inputmode="numeric" name="new_pin" required>
+      </label>
+      <label>
+        Confirmer le nouveau code
+        <input type="text" inputmode="numeric" name="confirm_pin" required>
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="button">Cambiar lo còdi</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card elev card-span-2">
+    <div class="card-kicker">Aparença</div>
+    <div class="card-title">Modèl d'interfàcia</div>
+    <p class="muted" style="margin:0">
+      Change l'apparence de tous les écrans de la borne (et de cette
+      administration). Pris en compte dès l'enregistrement — recharger
+      l'écran du kiosque (F5) pour le voir.
+    </p>
+    <form method="post" action="{{ url_for('admin.config_theme') }}" class="theme-grid">
+      {% for key, tpl in templates.items() %}
+      <label class="theme-option {{ 'theme-option-selected' if key == branding.theme else '' }}">
+        <input type="radio" name="theme" value="{{ key }}" {{ 'checked' if key == branding.theme else '' }}
+               onchange="this.form.requestSubmit()">
+        <span class="theme-preview theme-preview-{{ key }}">{{ tpl.label }}</span>
+        <span class="theme-swatches">{% for c in tpl.swatches %}<span style="background: {{ c }}"></span>{% endfor %}</span>
+        <span class="theme-label">{{ tpl.label }}{% if loop.first %} <span class="muted" style="font-weight:600">(par défaut)</span>{% endif %}</span>
+        <span class="theme-description muted">{{ tpl.description }}</span>
+      </label>
+      {% endfor %}
+    </form>
+  </div>
+
+  <div class="card elev card-span-2">
+    <div class="card-kicker">Aparença</div>
+    <div class="card-title">Bandièra de l'ecran d'accuèlh</div>
+    <p class="muted" style="margin:0">
+      Remplace le dessin générique par le logo de ton école et/ou une vraie
+      image de croix occitane. Les deux sont indépendants — tu peux ne
+      changer que l'un des deux.
+    </p>
+    <form method="post" action="{{ url_for('admin.config_branding') }}" enctype="multipart/form-data" class="object-form" style="background:none;padding:0;max-width:none;flex-direction:row;flex-wrap:wrap;gap:18px;">
+      <label style="flex:1;min-width:240px;">
+        Logo de l'école
+        {% if branding.logo_filename %}
+          <div class="current-file">
+            actuel :
+            <img class="branding-preview" src="{{ url_for('media_branding_file', filename=branding.logo_filename) }}" alt="">
+          </div>
+        {% endif %}
+        <input type="file" name="logo" accept="image/*" id="logo-file-input">
+        <div class="media-picker-row">
+          <button type="button" class="media-picker-btn" data-media-picker="branding"
+                  data-file-input="logo-file-input" data-hidden-input="logo-existing-input"
+                  data-preview="logo-existing-preview">Choisir dans la médiathèque</button>
+          <input type="hidden" name="existing_logo_filename" id="logo-existing-input">
+          <span class="media-picker-preview" id="logo-existing-preview"></span>
+        </div>
+      </label>
+      {% if branding.logo_filename %}
+      <button type="submit" form="reset-logo-form" class="link-danger">Revenir à l'image par défaut</button>
+      {% endif %}
+
+      <label style="flex:1;min-width:240px;">
+        Croix occitane
+        {% if branding.crotz_filename %}
+          <div class="current-file">
+            actuelle :
+            <img class="branding-preview" src="{{ url_for('media_branding_file', filename=branding.crotz_filename) }}" alt="">
+          </div>
+        {% endif %}
+        <input type="file" name="crotz" accept="image/*" id="crotz-file-input">
+        <div class="media-picker-row">
+          <button type="button" class="media-picker-btn" data-media-picker="branding"
+                  data-file-input="crotz-file-input" data-hidden-input="crotz-existing-input"
+                  data-preview="crotz-existing-preview">Choisir dans la médiathèque</button>
+          <input type="hidden" name="existing_crotz_filename" id="crotz-existing-input">
+          <span class="media-picker-preview" id="crotz-existing-preview"></span>
+        </div>
+      </label>
+      {% if branding.crotz_filename %}
+      <button type="submit" form="reset-crotz-form" class="link-danger">Revenir au dessin par défaut</button>
+      {% endif %}
+
+      <div class="form-actions" style="width:100%">
+        <button type="submit" class="button">Enregistrar la bandièra</button>
+      </div>
+    </form>
+    <form id="reset-logo-form" method="post" action="{{ url_for('admin.config_branding_reset') }}" class="hidden">
+      <input type="hidden" name="which" value="logo">
+    </form>
+    <form id="reset-crotz-form" method="post" action="{{ url_for('admin.config_branding_reset') }}" class="hidden">
+      <input type="hidden" name="which" value="crotz">
+    </form>
+  </div>
+
+  <!-- v0.10 (demande par Fabien) : "possibilité de changer le texte, les
+       infos ou directives afin qu'une école puisse mieux adapter" -- premiere
+       passe restreinte aux textes de l'ecran d'accueil et du menu (voir
+       settings_manager.KIOSK_TEXT_FIELDS/DEFAULT_KIOSK_TEXTS). Laisser un
+       champ vide revient au texte par defaut d'origine. -->
+  <div class="card elev card-span-2">
+    <div class="card-kicker">Contengut</div>
+    <div class="card-title">Tèxtes de la borna</div>
+    <p class="muted" style="margin:0">
+      Adapte les textes affichés sur l'écran d'accueil et le menu (nom de la
+      borne, message d'accueil…) — utile si ton école veut son propre
+      formulaire de bienvenue. Laisse un champ vide pour revenir au texte
+      d'origine.
+    </p>
+    <form method="post" action="{{ url_for('admin.config_texts') }}" class="object-form" style="background:none;padding:0;max-width:none;">
+      {% for field in kiosk_text_fields %}
+      <label>
+        {{ field.label }}
+        {% if field.multiline %}
+        <textarea name="{{ field.key }}" rows="3">{{ kiosk_texts[field.key] }}</textarea>
+        {% else %}
+        <input type="text" name="{{ field.key }}" value="{{ kiosk_texts[field.key] }}">
+        {% endif %}
+      </label>
+      {% endfor %}
+      <div class="form-actions">
+        <button type="submit" class="button">Enregistrar los tèxtes</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card elev card-span-2">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div>
+        <div class="card-kicker">Material</div>
+        <div class="card-title">Manèta &amp; clavièr</div>
+      </div>
+      {% if pygame_available %}
+      <span class="tag tag-accent-2" style="margin-left:auto">Manèta detectada</span>
+      {% else %}
+      <span class="tag tag-outline" style="margin-left:auto">Pas de manèta</span>
+      {% endif %}
+    </div>
+    <!-- v0.8 : le tableau reste TOUJOURS affiché, avec ou sans manette
+         détectée -- avant, il était entièrement caché en l'absence de
+         manette/pygame, ce qui rendait impossible d'assigner une touche de
+         clavier (indépendante de la manette) depuis une machine sans
+         manette branchée. Seule la colonne "Reassignar" (manette) reste
+         conditionnelle : "Assignar tòca" (clavier) ne dépend que du
+         navigateur, jamais de pygame. -->
+    {% if not pygame_available %}
+      <p class="muted" style="margin:0">
+        Aucune manette/pygame détectée sur cette machine — la réassignation
+        manette ne peut pas être testée ici (teste directement sur la borne
+        avec la manette branchée), mais les touches de clavier restent
+        assignables ci-dessous.
+      </p>
+    {% else %}
+      <p class="muted" style="margin:0">
+        Clique sur « Réassigner », puis actionne le bouton (ou la direction)
+        de la manette à associer à cette action — y compris la croix
+        directionnelle, quel que soit le type de signal qu'elle envoie
+        (bouton, croix « hat » ou axe analogique dédié : les trois sont
+        détectés automatiquement).
+      </p>
+    {% endif %}
+    <p class="muted" style="margin:0">
+      Une touche de clavier peut en plus être assignée à chaque action, en
+      complément de la manette (pas à la place) : les deux fonctionnent en
+      même temps une fois assignées — ex. la flèche gauche du clavier ET la
+      croix directionnelle de la manette peuvent toutes les deux faire
+      « gauche ».
+    </p>
+    <p class="muted" style="margin:0">
+      Un même bouton (ou une même touche) peut aussi être assigné à
+      plusieurs actions différentes — ex. le bouton A peut à la fois valider
+      un menu, répondre à un quiz et retourner une carte au Memòria : seule
+      l'action utile à l'écran affiché se déclenche à chaque appui.
+    </p>
+    <p class="muted" style="margin:0">
+      <strong>Tèxte afichat dins lo quiòsc</strong> — par défaut, le kiosque
+      affiche le contrôle réel calculé automatiquement (numéro de bouton,
+      flèche, touche…), mais ça ne correspond pas toujours à ce qui est
+      écrit sur ta manette. Tape ici le texte exact que tu vois sur ta
+      manette (ex. « A », « Select ») pour qu'il remplace le calcul
+      automatique dans les jeux — laisse le champ vide pour revenir au
+      calcul automatique.
+    </p>
+    <!-- v1.02 (demande par Fabien) : la table est desormais regroupee PAR
+         ACTIVITE (settings_manager.ACTIVITY_CONTROL_SECTIONS) plutot qu'une
+         seule liste a plat -- plus facile a lire a mesure que le nombre
+         d'actions augmente. Une section sans action dediee (Tròba l'objècte,
+         Memòria) affiche juste sa note explicative, sans tableau vide. -->
+    {% macro action_row(item) %}
+        <tr>
+          <td>
+            {{ item.label }}
+            {% if action_conflicts.get(item.action) %}
+            <div class="control-conflict-note">
+              Contròtle partejat amb : {{ action_conflicts[item.action] | join(", ") }}
+              {% if "Retour au menu (B)" in action_conflicts[item.action] %}
+              — un appui ramènera aussi au menu.
+              {% endif %}
+            </div>
+            {% endif %}
+          </td>
+          <td id="button-{{ item.action }}">
+            {% if item.action in action_to_label %}
+            <span class="tag tag-neutral">{{ action_to_label[item.action] }}</span>
+            {% else %}
+            <span class="tag tag-outline">non assignat</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right">
+            {% if pygame_available %}
+            <button type="button" class="btn btn-secondary gamepad-listen-btn" data-action="{{ item.action }}">Reassignar</button>
+            {% endif %}
+          </td>
+          <td id="key-{{ item.action }}">
+            {% if item.action in action_to_key %}
+            <span class="tag tag-neutral">{{ action_to_key[item.action] }}</span>
+            {% else %}
+            <span class="tag tag-outline">pas de tòca</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right;white-space:nowrap">
+            <button type="button" class="btn btn-secondary keyboard-listen-btn" data-action="{{ item.action }}">Assignar tòca</button>
+            {% if item.action in action_to_key %}
+            <form method="post" action="{{ url_for('admin.config_keyboard_unassign') }}" style="display:inline">
+              <input type="hidden" name="action" value="{{ item.action }}">
+              <button type="submit" class="link-danger">Retirar</button>
+            </form>
+            {% endif %}
+          </td>
+          <td>
+            <input type="text" class="action-label-input" name="{{ item.action }}" form="action-labels-form"
+                   value="{{ action_label_overrides.get(item.action, '') }}"
+                   placeholder="ex. actuellement : {{ kiosk_action_labels.get(item.action, '?') }}">
+          </td>
+        </tr>
+    {% endmacro %}
+
+    {% for section in activity_control_sections %}
+    <div class="control-section">
+      <div class="control-section-title">{{ section.title }}</div>
+      {% if section.note %}
+      <p class="muted" style="margin:0 0 8px">{{ section.note }}</p>
+      {% endif %}
+      {% if section.actions %}
+      <table class="table">
+        <thead><tr><th>Accion</th><th>Contraròtle manèta</th><th></th><th>Tòca de clavièr</th><th></th><th>Tèxte afichat</th></tr></thead>
+        <tbody>
+          {% for action_key in section.actions %}
+          {{ action_row(gamepad_actions_by_key[action_key]) }}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <div class="form-actions">
+      <button type="submit" form="action-labels-form" class="button">Enregistrar los tèxtes de botons</button>
+    </div>
+    <div id="gamepad-listening" class="hidden">
+      <p style="margin:0 0 8px">Appuie sur le bouton de la manette à associer à « <span id="listening-action-label"></span> »...</p>
+      <button type="button" class="link-danger" id="gamepad-cancel-btn">Annuler</button>
+    </div>
+    <div id="keyboard-listening" class="hidden">
+      <p style="margin:0 0 8px">Appuie sur la touche du clavier à associer à « <span id="keyboard-listening-action-label"></span> »... (Échap pour annuler)</p>
+      <button type="button" class="link-danger" id="keyboard-cancel-btn">Annuler</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- v1.01 : formulaire "vide" -- les champs de texte de bouton vivent dans
+     le tableau ci-dessus (attribut `form`, evite d'imbriquer un <form>
+     autour du tableau qui contient deja ses propres mini-formulaires
+     "Retirar"). -->
+<form id="action-labels-form" method="post" action="{{ url_for('admin.config_action_labels') }}"></form>
+
+<form id="gamepad-assign-form" method="post" action="{{ url_for('admin.gamepad_assign') }}" class="hidden">
+  <input type="hidden" name="action" id="gamepad-assign-action">
+  <input type="hidden" name="kind" id="gamepad-assign-kind">
+  <input type="hidden" name="button" id="gamepad-assign-button">
+  <input type="hidden" name="hat_x" id="gamepad-assign-hat-x">
+  <input type="hidden" name="hat_y" id="gamepad-assign-hat-y">
+  <input type="hidden" name="axis" id="gamepad-assign-axis">
+  <input type="hidden" name="sign" id="gamepad-assign-sign">
+</form>
+
+<form id="keyboard-assign-form" method="post" action="{{ url_for('admin.config_keyboard_assign') }}" class="hidden">
+  <input type="hidden" name="action" id="keyboard-assign-action">
+  <input type="hidden" name="key" id="keyboard-assign-key">
+</form>
+
+<script>
+  const actionLabels = {
+    {% for item in gamepad_actions %}"{{ item.action }}": "{{ item.label }}",{% endfor %}
+  };
+
+  // v0.8 : capture d'une touche de clavier -- entierement cote navigateur,
+  // contrairement a la manette (pas de polling serveur necessaire : un
+  // simple ecouteur "keydown" suffit, la meme normalisation que kiosk.js
+  // (touche d'un seul caractere en minuscule, sinon event.key tel quel) pour
+  // que les cles stockees correspondent bien entre les deux cotes).
+  const keyboardListening = document.getElementById("keyboard-listening");
+  const keyboardListeningLabel = document.getElementById("keyboard-listening-action-label");
+  let keyboardListenHandler = null;
+
+  function normalizeKey(event) {
+    return event.key.length === 1 ? event.key.toLowerCase() : event.key;
+  }
+
+  function stopKeyboardListening() {
+    if (keyboardListenHandler) {
+      window.removeEventListener("keydown", keyboardListenHandler, true);
+      keyboardListenHandler = null;
+    }
+    keyboardListening.classList.add("hidden");
+  }
+
+  document.querySelectorAll(".keyboard-listen-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      stopKeyboardListening();
+      const action = btn.dataset.action;
+      keyboardListeningLabel.textContent = actionLabels[action] || action;
+      keyboardListening.classList.remove("hidden");
+      keyboardListenHandler = (event) => {
+        event.preventDefault();
+        // v1.03 : Echap annule l'ecoute ; une touche de modification seule
+        // (Maj, Ctrl, Alt...) n'est jamais assignee par accident -- on attend
+        // la vraie touche.
+        if (event.key === "Escape") {
+          stopKeyboardListening();
+          return;
+        }
+        if (["Shift", "Control", "Alt", "AltGraph", "Meta", "CapsLock", "Tab", "Dead"].includes(event.key)) {
+          return;
+        }
+        stopKeyboardListening();
+        document.getElementById("keyboard-assign-action").value = action;
+        document.getElementById("keyboard-assign-key").value = normalizeKey(event);
+        document.getElementById("keyboard-assign-form").requestSubmit();
+      };
+      window.addEventListener("keydown", keyboardListenHandler, true);
+    });
+  });
+
+  document.getElementById("keyboard-cancel-btn").addEventListener("click", stopKeyboardListening);
+
+  {% if pygame_available %}
+  const listeningBox = document.getElementById("gamepad-listening");
+  const listeningLabel = document.getElementById("listening-action-label");
+  let pollTimer = null;
+
+  document.querySelectorAll(".gamepad-listen-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const action = btn.dataset.action;
+      const res = await fetch(`/admin/config/gamepad/listen/${action}`, { method: "POST" });
+      if (!res.ok) return;
+      listeningLabel.textContent = actionLabels[action] || action;
+      listeningBox.classList.remove("hidden");
+      pollTimer = setInterval(() => pollCapture(action), 400);
+    });
+  });
+
+  document.getElementById("gamepad-cancel-btn").addEventListener("click", async () => {
+    clearInterval(pollTimer);
+    listeningBox.classList.add("hidden");
+    await fetch("/admin/config/gamepad/cancel", { method: "POST" });
+  });
+
+  async function pollCapture(action) {
+    const res = await fetch("/admin/config/gamepad/status");
+    const data = await res.json();
+    const captured = data.captured;
+    if (captured) {
+      // v0.4 : trois formes possibles -- voir InputBus.poll_capture() /
+      // gamepad_assign() cote serveur. On remplit uniquement les champs
+      // caches correspondant au type capture, les autres restent vides.
+      clearInterval(pollTimer);
+      listeningBox.classList.add("hidden");
+      document.getElementById("gamepad-assign-action").value = action;
+      document.getElementById("gamepad-assign-kind").value = captured.kind;
+      document.getElementById("gamepad-assign-button").value = captured.kind === "button" ? captured.button : "";
+      document.getElementById("gamepad-assign-hat-x").value = captured.kind === "hat" ? captured.value[0] : "";
+      document.getElementById("gamepad-assign-hat-y").value = captured.kind === "hat" ? captured.value[1] : "";
+      document.getElementById("gamepad-assign-axis").value = captured.kind === "axis" ? captured.axis : "";
+      document.getElementById("gamepad-assign-sign").value = captured.kind === "axis" ? captured.sign : "";
+      document.getElementById("gamepad-assign-form").requestSubmit();
+    }
+  }
+  {% endif %}
+</script>
+{% endblock %}

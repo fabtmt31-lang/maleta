@@ -1,0 +1,53 @@
+{% extends "admin/base.html" %}
+{% block title %}Vilatges (Memòria vilatge){% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Vilatges — Memòria vilatge</h1>
+  <a class="button" href="{{ url_for('admin.village_new') }}">+ Ajouter un vilatge</a>
+</div>
+
+<p class="muted">
+  Chaque vilatge/ville fournit une paire de cartes pour le jeu « Memòria
+  vilatge » : une carte montre le nom français, l'autre le nom occitan. ⚠️
+  Vérifie chaque graphie occitane avec une source fiable (CNRTL, Institut
+  d'Estudis Occitan...) avant de l'ajouter ici — voir la note dans le concept
+  du projet.
+</p>
+
+<table class="admin-table">
+  <thead>
+    <tr>
+      <th>Actif</th>
+      <th>Nom français</th>
+      <th>Nom occitan</th>
+      <th>Source</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for village in villages %}
+    <tr class="{{ 'inactive' if not village.active else '' }}">
+      <td>
+        <form method="post" action="{{ url_for('admin.village_toggle_active', village_id=village.id) }}">
+          <button type="submit" class="toggle {{ 'on' if village.active else 'off' }}">
+            {{ 'actif' if village.active else 'inactif' }}
+          </button>
+        </form>
+      </td>
+      <td>{{ village.name_fr }}</td>
+      <td>{{ village.name_oc }}</td>
+      <td>{{ village.source or '—' }}</td>
+      <td class="row-actions">
+        <a href="{{ url_for('admin.village_edit', village_id=village.id) }}">Modifier</a>
+        <form method="post" action="{{ url_for('admin.village_delete', village_id=village.id) }}"
+              onsubmit="return confirm('Supprimer ce vilatge ?');">
+          <button type="submit" class="link-danger">Supprimer</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">Aucun vilatge pour l'instant — ajoute-en au moins 3 pour pouvoir lancer le jeu.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

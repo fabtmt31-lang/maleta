@@ -1,0 +1,59 @@
+{% extends "admin/base.html" %}
+{% block title %}Duèl Occitan{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Duèl Occitan</h1>
+  <a class="button" href="{{ url_for('admin.duel_new') }}">+ Ajouter une question</a>
+</div>
+
+<p class="muted">
+  Jeu à 2 joueurs : une question sur la culture ou la langue occitane
+  s'affiche avec 2 réponses possibles, et chaque joueur répond de son côté
+  avec ses propres boutons manette (configurable dans Configuration &gt;
+  Manette — actions « Duèl Occitan : joueur 1/2 »).
+  ⚠️ Vérifie chaque question avec une source fiable (CNRTL, Institut
+  d'Estudis Occitan...) avant de l'ajouter ici — voir la note dans le
+  concept du projet.
+</p>
+
+<table class="admin-table">
+  <thead>
+    <tr>
+      <th>Actif</th>
+      <th>Question</th>
+      <th>Réponse A</th>
+      <th>Réponse B</th>
+      <th>Bonne réponse</th>
+      <th>Source</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for question in questions %}
+    <tr class="{{ 'inactive' if not question.active else '' }}">
+      <td>
+        <form method="post" action="{{ url_for('admin.duel_toggle_active', question_id=question.id) }}">
+          <button type="submit" class="toggle {{ 'on' if question.active else 'off' }}">
+            {{ 'actif' if question.active else 'inactif' }}
+          </button>
+        </form>
+      </td>
+      <td>{{ question.question_fr }}</td>
+      <td>{{ question.choice_a }}</td>
+      <td>{{ question.choice_b }}</td>
+      <td>{{ 'A — ' ~ question.choice_a if question.correct_choice == 'a' else 'B — ' ~ question.choice_b }}</td>
+      <td>{{ question.source or '—' }}</td>
+      <td class="row-actions">
+        <a href="{{ url_for('admin.duel_edit', question_id=question.id) }}">Modifier</a>
+        <form method="post" action="{{ url_for('admin.duel_delete', question_id=question.id) }}"
+              onsubmit="return confirm('Supprimer cette question ?');">
+          <button type="submit" class="link-danger">Supprimer</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">Aucune question pour l'instant — ajoute-en au moins une pour pouvoir lancer le jeu.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

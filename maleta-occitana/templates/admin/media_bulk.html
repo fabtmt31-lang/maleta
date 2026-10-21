@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+{% block title %}Import en masse{% endblock %}
+{% block content %}
+<h1>Importer plusieurs photos/vidéos</h1>
+<p class="muted">
+  Sélectionne plusieurs fichiers d'un coup (maintiens Ctrl/Cmd, ou Maj pour
+  une plage, dans la fenêtre de sélection) — une entrée est créée pour
+  chaque fichier, sans légende ni durée particulière. Modifie-les ensuite
+  individuellement depuis la liste si besoin (légende, durée d'affichage,
+  ordre). Les mêmes formats sont acceptés qu'à l'ajout simple (photos et
+  vidéos MP4/WebM/QuickTime).
+</p>
+
+<form method="post" enctype="multipart/form-data" class="object-form">
+  <label>
+    Fichiers
+    <input type="file" name="files" accept="image/*,video/mp4,video/webm,video/quicktime" multiple required>
+  </label>
+
+  <div class="form-actions">
+    <button type="submit" class="button">Importer</button>
+    <a href="{{ url_for('admin.media_list') }}">Annuler</a>
+  </div>
+</form>
+{% endblock %}

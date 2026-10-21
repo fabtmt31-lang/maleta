@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Panneau de test — Maleta Occitana</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body>
+<main class="admin-main">
+  <h1>Panneau de test (mode dev)</h1>
+  <p class="muted">
+    Cette page n'existe que pour tester le kiosque sans lecteur NFC ni
+    manette branchés. Ouvrez <code>/</code> dans un autre onglet (ou sur un
+    second écran) pour voir l'effet en direct.
+  </p>
+
+  <table class="admin-table">
+    <thead><tr><th>Objet</th><th>Tags</th><th></th></tr></thead>
+    <tbody>
+      {% for entry in objects_with_tags %}
+      <tr>
+        <td>{{ entry.object.name_oc }} ({{ entry.object.name_fr }})</td>
+        <td>
+          {% if entry.tags %}
+            {% for tag in entry.tags %}<code>{{ tag.uid }}</code> {% endfor %}
+          {% else %}
+            <span class="muted">aucun tag — associez-en un dans l'admin</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if entry.tags %}
+          <button class="button" onclick="simulate('{{ entry.tags[0].uid }}')">Simuler le scan</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="muted">Aucun objet. Ajoutez-en depuis <a href="/admin">l'admin</a>.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <section style="margin-top:32px;">
+    <h2>Simuler la manette (étape 2)</h2>
+    <p class="muted">
+      Pour naviguer dans le menu « Tria un jòc » et tester Tròba l'objècte
+      sans manette branchée. Ouvrez <code>/</code> à côté pour voir l'effet.
+    </p>
+    <p>
+      <button class="button" onclick="action('left')">◀ Gauche</button>
+      <button class="button" onclick="action('right')">Droite ▶</button>
+      <button class="button" onclick="action('select')">Select (A)</button>
+      <button class="button" onclick="action('back')">Back (B)</button>
+      <button class="button" onclick="action('start_idle')">Start (→ veille)</button>
+    </p>
+    <p class="muted">Pour « Ven de l'occitan ? » (une fois la manche lancée depuis le menu) :</p>
+    <p>
+      <button class="button" onclick="action('answer_1')">X — Vertadièr</button>
+      <button class="button" onclick="action('answer_2')">Y — Fals</button>
+    </p>
+    <p class="muted">Pour le Duèl Occitan, jeu à 2 joueurs (une fois la manche lancée depuis le menu) :</p>
+    <p>
+      <button class="button" onclick="action('duel_p1_a')">Jogador 1 — A</button>
+      <button class="button" onclick="action('duel_p1_b')">Jogador 1 — B</button>
+      <button class="button" onclick="action('duel_p2_a')">Jogador 2 — A</button>
+      <button class="button" onclick="action('duel_p2_b')">Jogador 2 — B</button>
+    </p>
+    <p class="muted">
+      Pour la Memòria et la Memòria vilatge (une fois la manche lancée depuis
+      le menu) : les mêmes boutons ◀ Gauche / Droite ▶ / Select (A) / Back (B)
+      ci-dessus suffisent — déplacer le curseur dans la grille, retourner la
+      carte, abandonner.
+    </p>
+    <p class="muted">Pour le Quiz Calandreta (une fois la manche lancée depuis le menu) :</p>
+    <p>
+      <button class="button" onclick="action('answer_1')">Réponse A</button>
+      <button class="button" onclick="action('answer_2')">Réponse B</button>
+      <button class="button" onclick="action('answer_3')">Réponse C</button>
+    </p>
+  </section>
+</main>
+<script>
+  function simulate(uid) {
+    fetch(`/dev/simulate_tag/${encodeURIComponent(uid)}`, { method: "POST" });
+  }
+  function action(name) {
+    fetch(`/dev/action/${encodeURIComponent(name)}`, { method: "POST" });
+  }
+</script>
+</body>
+</html>

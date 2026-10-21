@@ -1,0 +1,22 @@
+# Maleta Occitana - dependances Python
+#
+# Installation dev (PC Windows/Linux) :
+#   pip install -r requirements.txt
+#
+# Sur le petit PC Debian de production, install.sh installe en plus
+# les paquets systeme necessaires au lecteur NFC OMNIKEY (pcscd,
+# libpcsclite-dev, swig) avant ce pip install.
+
+Flask==3.0.3
+Flask-SocketIO==5.3.6
+python-socketio==5.11.2
+python-engineio==4.9.1
+python-vlc==3.0.20123
+pygame==2.6.1  # 2.5.2 n'a pas de wheel precompile pour Python 3.13 (present sur Debian recent) -> echec de build ; 2.6.1 en fournit un
+Pillow==10.4.0
+
+# NFC (lecteur OMNIKEY, PC/SC) - import paresseux dans managers/tag_reader.py,
+# donc l'absence de ce paquet (ou de pcscd) n'empeche pas l'app de tourner en
+# mode simule. Fonctionne aussi bien sous Windows (dev) que sous Debian (prod,
+# via install.sh) : c'est la meme brique que sur Histoires du Soir.
+pyscard==2.0.7

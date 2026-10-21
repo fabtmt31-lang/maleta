@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% block title %}Connexion{% endblock %}
+{% block content %}
+{%- import 'kiosk/_macros.html' as m -%}
+<div class="login-box">
+  {{ m.cross() }}
+  <h1>La Maleta Occitana</h1>
+  <p>Entrez le code PIN de l'administration.</p>
+  <form method="post">
+    <input type="password" name="pin" inputmode="numeric" autofocus placeholder="Code PIN">
+    <button type="submit">Entrer</button>
+  </form>
+  <!-- v0.8 : signale par Fabien -- en cliquant sur la roue crantée sans
+       connaître le code, on restait bloqué sur cette page (aucun moyen de
+       revenir au kiosque sans URL tapée à la main). -->
+  <a class="login-back-link" href="{{ url_for('kiosk.index') }}">← Tornar al quiòsc</a>
+  <!-- v0.82 : version visible meme sans se connecter -- pour verifier en un
+       coup d'oeil que la borne a bien recu la derniere mise a jour. -->
+  <p class="login-version">v{{ app_version }}</p>
+</div>
+
+<!-- v1.03 (revue de code) : un visiteur qui selectionne l'icone Admin a la
+     manette atterrit ici, ou le navigateur n'ecoute plus la manette -- sans
+     clavier ni souris, la borne restait bloquee sur ce formulaire. Deux
+     portes de sortie :
+     - le bouton "retour" de la manette (action "back") ramene au kiosque
+       (evenement "kiosk_back" envoye par le serveur, voir
+       GameController.on_action) ;
+     - sans aucune activite clavier/souris pendant 60 s, retour automatique.
+     Rien ne se passe tant que quelqu'un tape son code. -->
+<script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+<script>
+  (function () {
+    const KIOSK_URL = "{{ url_for('kiosk.index') }}";
+    const IDLE_MS = 60000;
+    let idleTimer = null;
+    function backToKiosk() { window.location.href = KIOSK_URL; }
+    function resetIdle() {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(backToKiosk, IDLE_MS);
+    }
+    ["keydown", "mousemove", "mousedown", "touchstart", "input"].forEach((evt) =>
+      window.addEventListener(evt, resetIdle, { passive: true })
+    );
+    resetIdle();
+    if (typeof io === "function") {
+      io("/kiosk").on("kiosk_back", backToKiosk);
+    }
+  })();
+</script>
+{% endblock %}
