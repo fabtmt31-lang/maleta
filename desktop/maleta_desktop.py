@@ -275,14 +275,20 @@ def main():
             window.destroy()
 
     gui_result = {"ok": False}
+    # Diagnostic : MALETA_WEBVIEW_OPTS=nomenu,noicon,private desactive une option.
+    opts = set(filter(None, os.environ.get("MALETA_WEBVIEW_OPTS", "").split(",")))
+    start_kwargs = {"menu": menu, "private_mode": False,
+                    "storage_path": os.path.join(data_dir, "webview"), "icon": _icon_path()}
+    if "nomenu" in opts:
+        start_kwargs.pop("menu")
+    if "noicon" in opts:
+        start_kwargs.pop("icon")
+    if "private" in opts:
+        start_kwargs.pop("storage_path")
+        start_kwargs["private_mode"] = True
+    logger.info("Ouverture de la fenetre (options : %s)", sorted(start_kwargs))
     try:
-        webview.start(
-            watch_gui,
-            menu=menu,
-            private_mode=False,
-            storage_path=os.path.join(data_dir, "webview"),
-            icon=_icon_path(),
-        )
+        webview.start(watch_gui, **start_kwargs)
         logger.info("Fenetre fermee (renderer : %s)", getattr(webview, "renderer", "?"))
     except Exception:
         logger.exception("Impossible d'ouvrir la fenetre - ouverture dans le navigateur")

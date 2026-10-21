@@ -60,6 +60,42 @@ jobs:
           name: windows-exe
           path: dist/MaletaOccitana-Demo.exe
 
+  # TEMPORAIRE : diagnostic du plantage de la fenetre sous Windows.
+  windows-diag:
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r desktop/requirements.txt pyinstaller==6.11.1
+      - run: pyinstaller --noconfirm packaging/maleta-demo.spec
+      - name: Variantes
+        shell: pwsh
+        run: |
+          $env:MALETA_SMOKE_TEST = "gui"
+          $variants = @(
+            @{n="src"; exe="python"; args="desktop\maleta_desktop.py"; o=""},
+            @{n="src-noicon"; exe="python"; args="desktop\maleta_desktop.py"; o="noicon"},
+            @{n="exe-nomenu"; exe="dist\MaletaOccitana-Demo.exe"; args=$null; o="nomenu"},
+            @{n="exe-noicon"; exe="dist\MaletaOccitana-Demo.exe"; args=$null; o="noicon"},
+            @{n="exe-private"; exe="dist\MaletaOccitana-Demo.exe"; args=$null; o="private"},
+            @{n="exe-all"; exe="dist\MaletaOccitana-Demo.exe"; args=$null; o="nomenu,noicon,private"}
+          )
+          foreach ($v in $variants) {
+            $env:MALETA_WEBVIEW_OPTS = $v.o
+            $env:MALETA_DATA_DIR = "$env:RUNNER_TEMP\diag-$($v.n)"
+            if ($v.args) { $p = Start-Process -FilePath $v.exe -ArgumentList $v.args -PassThru -RedirectStandardError "$env:RUNNER_TEMP\err-$($v.n).txt" }
+            else { $p = Start-Process -FilePath $v.exe -PassThru }
+            $done = $p.WaitForExit(120000)
+            if (-not $done) { Stop-Process -Id $p.Id -Force }
+            Write-Host "########## $($v.n) : fini=$done code=$($p.ExitCode)"
+            Get-Content "$env:MALETA_DATA_DIR\maleta-demo.log" -ErrorAction SilentlyContinue | Select-String -NotMatch "smoke test /"
+            Get-Content "$env:RUNNER_TEMP\err-$($v.n).txt" -ErrorAction SilentlyContinue | Select-Object -Last 40
+          }
+          Get-WinEvent -LogName Application -MaxEvents 30 -ErrorAction SilentlyContinue | Where-Object { $_.ProviderName -match ".NET Runtime|Application Error" } | Select-Object -First 4 | ForEach-Object { Write-Host "---- EVENT"; Write-Host $_.Message }
+
   linux-deb:
     needs: tests
     runs-on: ubuntu-22.04
