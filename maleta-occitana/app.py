@@ -30,6 +30,11 @@ def create_app():
     app = Flask(__name__)
     app.config["SECRET_KEY"] = config.SECRET_KEY
 
+    # v1.2 : le dossier de donnees peut etre distinct du code (demo, voir
+    # config.DATA_DIR) -- il doit exister avant d'ouvrir la base.
+    for directory in (config.DATA_DIR, config.OBJECT_IMAGES_DIR, config.OBJECT_AUDIO_DIR,
+                      config.MEDIA_LIBRARY_DIR, config.BRANDING_DIR):
+        os.makedirs(directory, exist_ok=True)
     init_db()
     app.teardown_appcontext(close_db)
 
@@ -46,6 +51,11 @@ def create_app():
                 "PIN admin reinitialise a la valeur par defaut (MALETA_RESET_ADMIN_PIN=1) -- "
                 "pense a retirer cette variable d'environnement."
             )
+        if config.DEMO_MODE:
+            # v1.2 : version de demo (clavier par defaut, tags simules).
+            from managers import object_manager
+            settings_manager.seed_demo_key_map()
+            object_manager.ensure_demo_tags()
         stored_button_map = settings_manager.get_gamepad_button_map()
         stored_hat_map = settings_manager.get_gamepad_hat_map()
         stored_axis_map = settings_manager.get_gamepad_axis_map()

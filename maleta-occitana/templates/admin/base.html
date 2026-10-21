@@ -55,12 +55,13 @@
         <div class="sidebar-group-label">Sistèma</div>
         <a class="sidebar-link {{ 'active' if request.endpoint == 'admin.mediatheque' }}" href="{{ url_for('admin.mediatheque') }}">{{ m.icon('folder', sw=2) }}<span>Mediatèca</span></a>
         <a class="sidebar-link {{ 'active' if request.endpoint == 'admin.config_home' }}" href="{{ url_for('admin.config_home') }}">{{ m.icon('gear', sw=2) }}<span>Configuracion</span></a>
+        <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.transfer', 'admin.transfer_import') }}" href="{{ url_for('admin.transfer') }}">{{ m.icon('database', sw=2) }}<span>Exportar / Importar</span></a>
       </div>
 
       <div class="sidebar-footer">
-        <a class="sidebar-footer-link" href="{{ url_for('kiosk.index') }}" target="_blank">{{ m.icon('external', sw=2) }}Veire lo quiòsc</a>
+        <a class="sidebar-footer-link" href="{{ url_for('kiosk.index') }}"{% if not demo_mode %} target="_blank"{% endif %}>{{ m.icon('external', sw=2) }}Veire lo quiòsc</a>
         <a class="sidebar-footer-logout" href="{{ url_for('admin.logout') }}">{{ m.icon('logout', sw=2) }}Se desconnectar</a>
-        <span class="sidebar-footer-version">v{{ app_version }}</span>
+        <span class="sidebar-footer-version">v{{ app_version }}{% if demo_mode %} · <strong class="demo-badge">DÉMO</strong>{% endif %}</span>
       </div>
     </aside>
     {% endif %}

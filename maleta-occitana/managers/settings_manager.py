@@ -554,6 +554,36 @@ def get_gamepad_key_map():
         return {}
 
 
+# v1.2 : version de demo -- un PC de bureau n'a generalement pas de manette :
+# ce mapping clavier est enregistre au premier demarrage de la demo (jamais
+# sur la borne, ou aucune touche n'est assignee par defaut, voir ci-dessus).
+# Reste modifiable depuis Configuration > Manèta & clavièr. Duèl : touches
+# S/D (joueur 1) et K/L (joueur 2), voisines en AZERTY comme en QWERTY.
+DEMO_KEY_MAP = {
+    "ArrowLeft": ["left"],
+    "ArrowRight": ["right"],
+    "ArrowUp": ["up"],
+    "ArrowDown": ["down"],
+    "Enter": ["select"],
+    "Escape": ["back"],
+    "1": ["answer_1"],
+    "2": ["answer_2"],
+    "3": ["answer_3"],
+    "p": ["start_idle"],
+    "s": ["duel_p1_a"],
+    "d": ["duel_p1_b"],
+    "k": ["duel_p2_a"],
+    "l": ["duel_p2_b"],
+}
+
+
+def seed_demo_key_map():
+    """v1.2 (demo) : enregistre DEMO_KEY_MAP si aucun mapping clavier n'existe
+    encore -- ne touche jamais a un mapping deja personnalise."""
+    if _get(KEY_GAMEPAD_KEY_MAP, None) is None:
+        set_gamepad_key_map(DEMO_KEY_MAP)
+
+
 def set_gamepad_key_map(key_map):
     """key_map : {key(str): [action(str), ...]}."""
     _set(KEY_GAMEPAD_KEY_MAP, json.dumps({k: list(v) for k, v in key_map.items()}))
@@ -737,6 +767,10 @@ def build_kiosk_action_labels():
             continue
         g = gamepad_label.get(action)
         k = key_label.get(action)
+        # v1.2 : la version de demo se joue au clavier -- le numero de
+        # bouton manette par defaut n'y aurait aucun sens.
+        if config.DEMO_MODE and k:
+            g = None
         if g and k:
             labels[action] = f"{g} / {k}"
         elif g:

@@ -7,17 +7,18 @@ Ven de l'occitan (ex-« Ven de l'occitan ») / Quiz / Reglages generaux viendron
 gabarit dans une etape ulterieure.
 """
 
+import io
 import time
 from functools import wraps
 
 from flask import (
     Blueprint, render_template, request, redirect, url_for, session, flash,
-    current_app, jsonify,
+    current_app, jsonify, send_file,
 )
 
 import config
 from managers import (
-    duel_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
+    content_transfer, duel_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
     vertadier_manager, village_manager,
 )
 from managers.tag_reader import SimulatedTagReader
@@ -57,7 +58,7 @@ def inject_app_version():
     correctif v0.81 sur le partage bouton/touche ne semblait pas s'appliquer
     chez lui, l'hypothese la plus probable etant un service non redemarre ou
     un navigateur qui sert une version en cache)."""
-    return {"app_version": config.APP_VERSION}
+    return {"app_version": config.APP_VERSION, "demo_mode": config.DEMO_MODE}
 
 
 @admin_bp.context_processor
@@ -106,7 +107,10 @@ def login():
             # directement la liste des objets.
             return redirect(url_for("admin.dashboard"))
         flash("Code PIN incorrect")
-    return render_template("admin/login.html")
+    demo_pin = None
+    if config.DEMO_MODE and settings_manager.get_admin_pin() == config.ADMIN_PIN:
+        demo_pin = config.ADMIN_PIN
+    return render_template("admin/login.html", demo_pin=demo_pin)
 
 
 @admin_bp.route("/logout")
@@ -1155,3 +1159,68 @@ def config_keyboard_unassign():
         settings_manager.unassign_keyboard_key(action)
         flash("Touche clavier retirée")
     return redirect(url_for("admin.config_home"))
+
+
+# --- Exportar / Importar (v1.2) ----------------------------------------------
+# Extraire le contenu saisi a la main (typiquement dans la version de demo)
+# pour le reimplanter dans une autre installation (typiquement la borne).
+# Voir managers/content_transfer.py pour le format.
+
+@admin_bp.route("/transfer")
+@login_required
+def transfer():
+    current = content_transfer.summarize(content_transfer.build_counts())
+    return render_template(
+        "admin/transfer.html",
+        sections=content_transfer.SECTIONS,
+        current=current,
+        report=None,
+    )
+
+
+@admin_bp.route("/transfer/export")
+@login_required
+def transfer_export():
+    filename, payload = content_transfer.build_export(
+        include_media=request.args.get("media", "1") == "1",
+        include_settings=request.args.get("settings", "1") == "1",
+    )
+    return send_file(
+        io.BytesIO(payload), mimetype="application/zip",
+        as_attachment=True, download_name=filename,
+    )
+
+
+@admin_bp.route("/transfer/import", methods=["POST"])
+@login_required
+def transfer_import():
+    upload = request.files.get("bundle")
+    if not upload or not upload.filename:
+        flash("Choisis d'abord un fichier d'export (.zip).")
+        return redirect(url_for("admin.transfer"))
+    try:
+        data, archive = content_transfer.read_bundle(upload)
+        sections = [s["name"] for s in content_transfer.SECTIONS if request.form.get(f"section_{s['name']}")]
+        if not sections and not request.form.get("settings"):
+            flash("Coche au moins une section à importer.")
+            return redirect(url_for("admin.transfer"))
+        report = content_transfer.import_bundle(
+            data, archive, sections,
+            mode=request.form.get("mode", "merge"),
+            import_settings=bool(request.form.get("settings")),
+            import_tags=bool(request.form.get("tags")),
+        )
+    except content_transfer.ImportError_ as exc:
+        flash(str(exc))
+        return redirect(url_for("admin.transfer"))
+    return render_template(
+        "admin/transfer.html",
+        sections=content_transfer.SECTIONS,
+        current=content_transfer.summarize(content_transfer.build_counts()),
+        report=report,
+        bundle_info={
+            "app_version": data.get("app_version"),
+            "source": data.get("source"),
+            "exported_at": data.get("exported_at"),
+        },
+    )

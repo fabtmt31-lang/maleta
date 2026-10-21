@@ -72,6 +72,8 @@ def create_object(name_oc, name_fr, category, image_filename=None, audio_filenam
         (name_oc, name_fr, category, image_filename, audio_filename),
     )
     db.commit()
+    if config.DEMO_MODE:
+        ensure_demo_tags()
     return cur.lastrowid
 
 
@@ -129,6 +131,38 @@ def set_object_active(object_id, active):
 
 
 # --- Tags NFC -----------------------------------------------------------
+
+# v1.2 : prefixe des tags simules de la version de demo (aucun lecteur NFC) --
+# un par objet, cree automatiquement, pour que Tròba l'objècte soit jouable
+# et que le panneau "Pausar un objècte" du kiosque puisse "poser" n'importe
+# quel objet. Jamais exportes (voir content_transfer.py) : ils ne
+# correspondent a aucun tag physique.
+DEMO_TAG_PREFIX = "DEMO-"
+# Tags fictifs crees par le bouton "Simuler un scan" de l'admin (mode dev).
+SIMULATED_TAG_PREFIX = "SIMU-"
+
+
+def is_fake_tag(uid):
+    return str(uid).startswith((DEMO_TAG_PREFIX, SIMULATED_TAG_PREFIX))
+
+
+def demo_tag_uid(object_id):
+    return f"{DEMO_TAG_PREFIX}{object_id}"
+
+
+def ensure_demo_tags():
+    """v1.2 (demo) : associe un tag simule a chaque objet qui n'en a pas."""
+    db = get_db()
+    db.execute(
+        """
+        INSERT OR IGNORE INTO tags (uid, object_id)
+        SELECT ? || objects.id, objects.id FROM objects
+        WHERE NOT EXISTS (SELECT 1 FROM tags WHERE tags.object_id = objects.id)
+        """,
+        (DEMO_TAG_PREFIX,),
+    )
+    db.commit()
+
 
 def list_tags_for_object(object_id):
     db = get_db()

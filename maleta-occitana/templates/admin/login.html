@@ -6,6 +6,11 @@
   {{ m.cross() }}
   <h1>La Maleta Occitana</h1>
   <p>Entrez le code PIN de l'administration.</p>
+  {%- if demo_pin %}
+  <!-- v1.2 : version de demo -- le code par defaut est rappele tant qu'il
+       n'a pas ete change (Configuration > Còdi PIN). -->
+  <p class="demo-hint">Version démo : code <strong>{{ demo_pin }}</strong></p>
+  {%- endif %}
   <form method="post">
     <input type="password" name="pin" inputmode="numeric" autofocus placeholder="Code PIN">
     <button type="submit">Entrer</button>

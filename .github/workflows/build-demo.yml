@@ -1,0 +1,103 @@
+# Construit la version de demonstration de La Maleta Occitana :
+#   - Windows : MaletaOccitana-Demo.exe (un seul fichier, rien a installer)
+#   - Linux   : maleta-occitana-demo_<version>_all.deb (Debian 12+ / Ubuntu 22.04+)
+#
+# Chaque push publie les deux fichiers dans la pre-release « demo-latest »
+# (page Releases du depot). Un tag v* (ex. v1.2) publie une release definitive.
+name: Build demo
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tests:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -r desktop/requirements.txt pytest
+      - run: python -m pytest -q tests
+
+  windows-exe:
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dependances
+        run: pip install -r desktop/requirements.txt pyinstaller==6.11.1
+      - name: PyInstaller
+        run: pyinstaller --noconfirm packaging/maleta-demo.spec
+      - name: Verification de l'executable
+        shell: pwsh
+        run: |
+          $env:MALETA_SMOKE_TEST = "1"
+          $env:MALETA_DATA_DIR = "$env:RUNNER_TEMP\maleta-smoke"
+          $p = Start-Process -FilePath dist\MaletaOccitana-Demo.exe -PassThru -Wait
+          Get-Content "$env:MALETA_DATA_DIR\maleta-demo.log"
+          if ($p.ExitCode -ne 0) { throw "smoke test : code $($p.ExitCode)" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/MaletaOccitana-Demo.exe
+
+  linux-deb:
+    needs: tests
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # Version la plus ancienne visee (Ubuntu 22.04) : les dependances
+          # embarquees sont choisies pour elle et restent valables au-dessus.
+          python-version: "3.10"
+      - name: Paquet .deb
+        run: bash packaging/build_deb.sh
+      - name: Verification du paquet (installation + demarrage)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ./dist/maleta-occitana-demo_*_all.deb
+          MALETA_SMOKE_TEST=1 MALETA_DATA_DIR="$RUNNER_TEMP/maleta-smoke" maleta-occitana-demo
+          cat "$RUNNER_TEMP/maleta-smoke/maleta-demo.log"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb
+          path: dist/*.deb
+
+  release:
+    needs: [windows-exe, linux-deb]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    concurrency: release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -la dist
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --title "La Maleta Occitana $GITHUB_REF_NAME — démo" \
+              --notes "Version de démonstration : MaletaOccitana-Demo.exe (Windows 10/11) et paquet .deb (Debian 12+ / Ubuntu 22.04+). Voir le README pour l'installation."
+          else
+            gh release delete demo-latest --yes --cleanup-tag || true
+            gh release create demo-latest dist/* --prerelease --target "$GITHUB_SHA" \
+              --title "Démo — dernière version (${GITHUB_REF_NAME})" \
+              --notes "Construite automatiquement depuis la branche ${GITHUB_REF_NAME}, commit ${GITHUB_SHA::7}. MaletaOccitana-Demo.exe : Windows 10/11. Paquet .deb : Debian 12+ / Ubuntu 22.04+."
+          fi

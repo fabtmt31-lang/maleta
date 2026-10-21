@@ -1,0 +1,154 @@
+{% extends "admin/base.html" %}
+{% block title %}Exportar / Importar{% endblock %}
+{% block content %}
+<!-- v1.2 : extraire le contenu saisi a la main (ex. dans la version de demo)
+     pour le reimplanter dans une autre installation (ex. la borne). Voir
+     transfer() dans blueprints/admin.py et managers/content_transfer.py. -->
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">Sistèma</div>
+    <h1>Exportar / Importar</h1>
+    <p class="muted" style="margin-top:4px">
+      Récupérer tout le contenu saisi à la main (objets, questions, vilatges,
+      diaporama, textes de la borne) dans un seul fichier, pour le réimplanter
+      sur une autre installation — par exemple de la version démo vers la borne.
+    </p>
+  </div>
+</div>
+
+{% if report %}
+<div class="card elev" style="margin-bottom:20px">
+  <div class="card-kicker">Import terminat</div>
+  <div class="card-title">Rapport d'import</div>
+  {% if bundle_info %}
+  <p class="muted" style="margin:0 0 10px">
+    Export de la version {{ bundle_info.app_version or '?' }}
+    ({{ 'démo' if bundle_info.source == 'demo' else 'borne' }}){% if bundle_info.exported_at %}, du {{ bundle_info.exported_at.replace('T', ' à ') }}{% endif %}.
+  </p>
+  {% endif %}
+  <table class="admin-table">
+    <thead><tr><th>Section</th><th>Ajoutés</th><th>Ignorés (doublons ou incomplets)</th></tr></thead>
+    <tbody>
+      {% for name, r in report.sections.items() %}
+      <tr><td>{{ r.label }}</td><td>{{ r.added }}</td><td>{{ r.skipped }}</td></tr>
+      {% else %}
+      <tr><td colspan="3" class="muted">Aucune section de contenu importée.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted" style="margin:10px 0 0">
+    {{ report.files }} fichier(s) média copié(s).{% if report.settings %} Apparence et textes de la borne importés (recharger l'écran du kiosque pour les voir).{% endif %}
+  </p>
+  {% if report.warnings %}
+  <ul class="muted" style="margin:8px 0 0">
+    {% for w in report.warnings[:20] %}<li>{{ w }}</li>{% endfor %}
+    {% if report.warnings|length > 20 %}<li>… et {{ report.warnings|length - 20 }} autre(s).</li>{% endif %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="cards-grid">
+
+  <div class="card elev">
+    <div class="card-kicker">Exportar</div>
+    <div class="card-title">Extraire le contenu</div>
+    <p class="muted" style="margin:0">Contenu actuel de cette installation :</p>
+    <ul style="margin:6px 0 12px">
+      {% for c in current %}<li>{{ c.label }} : <strong>{{ c.count }}</strong></li>{% endfor %}
+    </ul>
+    <form id="export-form" method="get" action="{{ url_for('admin.transfer_export') }}" class="object-form" style="background:none;padding:0;max-width:none;">
+      <label class="checkbox-label">
+        <input type="checkbox" name="media" value="1" checked> Inclure les images, sons, photos et vidéos
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" name="settings" value="1" checked> Inclure l'apparence et les textes de la borne
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="button">Telecargar l'export (.zip)</button>
+      </div>
+    </form>
+    <p class="muted" style="margin:10px 0 0">
+      Le .zip contient aussi un dossier <code>tableur/</code> (fichiers CSV
+      lisibles dans Excel/LibreOffice) pour relire les questions et leurs
+      sources. Jamais exportés : le code PIN, les réglages manette/clavier
+      et les tags NFC simulés.
+    </p>
+    <p id="export-status" class="muted" style="margin:10px 0 0"></p>
+  </div>
+
+  <div class="card elev card-span-2">
+    <div class="card-kicker">Importar</div>
+    <div class="card-title">Réimplanter un export</div>
+    <form method="post" action="{{ url_for('admin.transfer_import') }}" enctype="multipart/form-data"
+          class="object-form" style="background:none;padding:0;max-width:none;" id="import-form">
+      <label>
+        Fichier d'export (.zip, ou .json seul)
+        <input type="file" name="bundle" accept=".zip,.json,application/zip,application/json" required>
+      </label>
+      <fieldset style="border:0;padding:0;margin:0">
+        <legend style="font-weight:700;margin-bottom:6px">Sections à importer</legend>
+        {% for s in sections %}
+        <label class="checkbox-label">
+          <input type="checkbox" name="section_{{ s.name }}" value="1" checked> {{ s.label }}
+        </label>
+        {% endfor %}
+        <label class="checkbox-label">
+          <input type="checkbox" name="settings" value="1"> Apparence et textes de la borne (modèle, bannière, textes)
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="tags" value="1" checked> Tags NFC réels associés aux objets
+        </label>
+      </fieldset>
+      <fieldset style="border:0;padding:0;margin:0">
+        <legend style="font-weight:700;margin-bottom:6px">Mode</legend>
+        <label class="checkbox-label">
+          <input type="radio" name="mode" value="merge" checked>
+          Ajouter — garde le contenu déjà présent ici, ignore les doublons
+        </label>
+        <label class="checkbox-label">
+          <input type="radio" name="mode" value="replace">
+          Remplacer — efface d'abord le contenu des sections cochées
+        </label>
+      </fieldset>
+      <div class="form-actions">
+        <button type="submit" class="button">Importar</button>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+<script>
+  // Remplacer efface du contenu : confirmation explicite.
+  document.getElementById("import-form").addEventListener("submit", (event) => {
+    const mode = event.target.querySelector("input[name=mode]:checked");
+    if (mode && mode.value === "replace" &&
+        !confirm("Le contenu actuel des sections cochées sera effacé avant l'import. Continuer ?")) {
+      event.preventDefault();
+    }
+  });
+
+  // Case décochée = paramètre absent ; on envoie explicitement 0.
+  const exportForm = document.getElementById("export-form");
+  exportForm.addEventListener("submit", (event) => {
+    const params = new URLSearchParams();
+    ["media", "settings"].forEach((name) => {
+      const box = exportForm.querySelector(`input[type=checkbox][name=${name}]`);
+      params.set(name, box.checked ? "1" : "0");
+    });
+    const url = `${exportForm.action}?${params}`;
+    event.preventDefault();
+    // Version de bureau (démo) : boîte « Enregistrer sous » native.
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.save_export) {
+      const status = document.getElementById("export-status");
+      status.textContent = "Préparation de l'export…";
+      window.pywebview.api.save_export(url).then((path) => {
+        status.textContent = path ? `Export enregistré : ${path}` : "Export annulé.";
+      }).catch(() => { status.textContent = "Échec de l'export."; });
+      return;
+    }
+    window.location.href = url;
+  });
+</script>
+{% endblock %}

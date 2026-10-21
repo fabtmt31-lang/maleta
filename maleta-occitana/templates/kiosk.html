@@ -509,5 +509,20 @@
     window.MALETA_TEMPLATE = {{ template | tojson }};
   </script>
   <script src="{{ url_for('static', filename='js/kiosk.js') }}"></script>
+  {%- if demo_mode %}
+  <!-- v1.2 : version de demo (aucun lecteur NFC) -- panneau pour "poser"
+       un objet a la souris (ou touche F2), voir static/js/kiosk-demo.js. -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk-demo.css') }}">
+  <button type="button" id="demo-nfc-toggle" class="demo-nfc-toggle" title="Pausar un objècte (F2)">NFC · F2</button>
+  <aside id="demo-nfc-panel" class="demo-nfc-panel hidden" aria-label="Pausar un objècte">
+    <div class="demo-nfc-head">
+      <strong>Pausar un objècte</strong>
+      <button type="button" id="demo-nfc-close" aria-label="Fermer">×</button>
+    </div>
+    <p class="demo-nfc-help">Version démo : cliquer sur un objet revient à le poser sur le lecteur NFC.</p>
+    <div id="demo-nfc-list" class="demo-nfc-list"></div>
+  </aside>
+  <script src="{{ url_for('static', filename='js/kiosk-demo.js') }}"></script>
+  {%- endif %}
 </body>
 </html>

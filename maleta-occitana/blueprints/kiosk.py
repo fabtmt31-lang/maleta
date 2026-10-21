@@ -1,7 +1,7 @@
 """Ecran du kiosque (ce qui s'affiche en plein ecran sur la borne) + routes
 de test pour developper sans lecteur NFC ni manette branches."""
 
-from flask import Blueprint, render_template, jsonify, current_app
+from flask import Blueprint, render_template, jsonify, current_app, abort, url_for
 
 import config
 from managers import object_manager, settings_manager
@@ -48,6 +48,7 @@ def index():
         # qu'une ecole puisse adapter le message a son contexte -- meme
         # principe de rendu qu'au-dessus (lu une fois au chargement de page).
         texts=settings_manager.get_kiosk_texts(),
+        demo_mode=config.DEMO_MODE,
     )
 
 
@@ -80,3 +81,39 @@ def dev_action(action):
     retour a l'accueil, sans passer par le dispatcher d'etats)."""
     current_app.extensions["game_controller"].on_action(action)
     return jsonify({"ok": True, "action": action})
+
+
+# --- Version de demo (v1.2) ---------------------------------------------------
+# Aucun lecteur NFC sur un PC de demo : le panneau "Pausar un objècte" du
+# kiosque (static/js/kiosk-demo.js) liste les objets actifs et "pose" celui
+# qu'on clique, via son tag simule (voir object_manager.ensure_demo_tags).
+
+@kiosk_bp.route("/demo/objects")
+def demo_objects():
+    if not config.DEMO_MODE:
+        abort(404)
+    object_manager.ensure_demo_tags()
+    items = []
+    for obj in object_manager.list_objects(only_active=True):
+        items.append({
+            "id": obj["id"],
+            "name_oc": obj["name_oc"],
+            "name_fr": obj["name_fr"],
+            "image": url_for("media_object_image", filename=obj["image_filename"]) if obj["image_filename"] else None,
+        })
+    return jsonify({"objects": items})
+
+
+@kiosk_bp.route("/demo/place/<int:object_id>", methods=["POST"])
+def demo_place(object_id):
+    if not config.DEMO_MODE:
+        abort(404)
+    tag_reader = current_app.extensions["tag_reader"]
+    if not isinstance(tag_reader, SimulatedTagReader):
+        return jsonify({"error": "simulation indisponible (lecteur NFC reel actif)"}), 400
+    object_manager.ensure_demo_tags()
+    tags = object_manager.list_tags_for_object(object_id)
+    if not tags:
+        return jsonify({"error": "objet introuvable"}), 404
+    tag_reader.simulate_uid(tags[0]["uid"])
+    return jsonify({"ok": True})

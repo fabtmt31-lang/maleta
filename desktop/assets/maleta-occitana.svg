@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect x="0" y="0" width="100" height="100" rx="20" fill="#B3141C"/>
+  <g transform="translate(12 12) scale(0.76)">
+    <g fill="none" stroke="#F6C22E" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M31.6 16.8Q42 16 50 6Q58 16 68.4 16.8"/><path d="M68.4 16.8Q56.2 30.5 53.6 46.4Q69.5 43.8 83.2 31.6"/>
+      <path d="M83.2 31.6Q84 42 94 50Q84 58 83.2 68.4"/><path d="M83.2 68.4Q69.5 56.2 53.6 53.6Q56.2 69.5 68.4 83.2"/>
+      <path d="M68.4 83.2Q58 84 50 94Q42 84 31.6 83.2"/><path d="M31.6 83.2Q43.8 69.5 46.4 53.6Q30.5 56.2 16.8 68.4"/>
+      <path d="M16.8 68.4Q16 58 6 50Q16 42 16.8 31.6"/><path d="M16.8 31.6Q30.5 43.8 46.4 46.4Q43.8 30.5 31.6 16.8"/>
+    </g>
+    <g fill="#F6C22E">
+      <circle cx="50" cy="6" r="4.6"/><circle cx="31.6" cy="16.8" r="4.6"/><circle cx="68.4" cy="16.8" r="4.6"/>
+      <circle cx="94" cy="50" r="4.6"/><circle cx="83.2" cy="31.6" r="4.6"/><circle cx="83.2" cy="68.4" r="4.6"/>
+      <circle cx="50" cy="94" r="4.6"/><circle cx="68.4" cy="83.2" r="4.6"/><circle cx="31.6" cy="83.2" r="4.6"/>
+      <circle cx="6" cy="50" r="4.6"/><circle cx="16.8" cy="68.4" r="4.6"/><circle cx="16.8" cy="31.6" r="4.6"/>
+    </g>
+  </g>
+</svg>

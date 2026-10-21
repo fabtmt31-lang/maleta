@@ -124,7 +124,7 @@ def disk_usage():
     """Espace disque de la machine qui héberge l'appli (pas seulement le
     dossier médias -- l'appli tourne sur un petit PC/une VM au stockage
     limité, c'est l'espace disque global qui compte)."""
-    total, used, free = shutil.disk_usage(config.BASE_DIR)
+    total, used, free = shutil.disk_usage(config.DATA_DIR)
     return {
         "total_bytes": total,
         "used_bytes": used,

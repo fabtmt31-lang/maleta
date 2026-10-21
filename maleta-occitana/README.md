@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.11** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.2** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -393,6 +393,27 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.2** (21/10/2026) — **version de démonstration + export/import du
+  contenu**.
+  1. **Admin > Exportar / Importar** (nouvelle page, section Sistèma) :
+     extrait tout le contenu saisi à la main (objets avec images/sons, Ven de
+     l'occitan ?, Duèl, Quiz, Vilatges, Fotos & vidèos, apparence et textes de
+     la borne) dans un seul `.zip`, et le réimplante sur une autre
+     installation — mode « Ajouter » (doublons ignorés) ou « Remplacer ». Le
+     .zip contient aussi des CSV (`tableur/`) pour relire le contenu dans un
+     tableur. Jamais exportés : PIN, réglages manette/clavier, tags NFC
+     simulés. Code : `managers/content_transfer.py`.
+  2. **Version démo** (`MALETA_DEMO=1`, utilisée par l'application de bureau
+     du dossier `desktop/` à la racine du dépôt — exécutable Windows et
+     paquet .deb) : clavier assigné par défaut, un tag NFC simulé par objet
+     et un panneau « Pausar un objècte » (F2) sur le kiosque, rappel du code
+     PIN par défaut sur la connexion admin, mention DÉMO dans la barre
+     latérale. **Aucun effet sur la borne** : `install.sh` ne définit pas
+     cette variable.
+  3. **Dossier des données réglable** (`MALETA_DATA_DIR`, base + médias) :
+     par défaut le dossier du code, comme avant — rien ne change sur la
+     borne.
+  Mise à jour de la borne : comme d'habitude, `sudo bash install.sh`.
 - **v1.11** (04/10/2026) — **écran de la borne limité à la moitié gauche
   (zone noire à droite) sur une machine physique**. La page n'est pas en
   cause : c'est la fenêtre de Chromium qui restait plus petite que l'écran.

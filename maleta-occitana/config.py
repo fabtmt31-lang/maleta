@@ -21,16 +21,30 @@ import os
 # navigateur en cache, mauvais dossier déployé...). A METTRE A JOUR à chaque
 # nouvelle archive livrée, en même temps que le numéro de version en tête du
 # README.md -- les deux doivent toujours rester synchronisés.
-APP_VERSION = "1.11"
+APP_VERSION = "1.2"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# v1.2 : version de demonstration (application de bureau Windows/Linux, voir
+# desktop/ a la racine du depot). MALETA_DEMO=1 active : un mapping clavier
+# par defaut (aucune manette sur un PC de demo), un tag NFC simule pour
+# chaque objet et un panneau "Pausar un objècte" sur l'ecran du kiosque (pas
+# de lecteur NFC), et un bandeau "Demo" dans l'admin. Jamais active sur la
+# borne (install.sh ne la definit pas).
+DEMO_MODE = os.environ.get("MALETA_DEMO") == "1"
+
+# v1.2 : dossier des donnees modifiables (base + medias). Par defaut le
+# dossier du code, comme avant (rien ne change sur la borne) ; la version de
+# demo le place dans le dossier utilisateur, le dossier d'installation d'une
+# application de bureau n'etant pas toujours accessible en ecriture.
+DATA_DIR = os.environ.get("MALETA_DATA_DIR") or BASE_DIR
+
 # Dossier de la base SQLite
-DATABASE_PATH = os.path.join(BASE_DIR, "maleta.db")
+DATABASE_PATH = os.path.join(DATA_DIR, "maleta.db")
 SCHEMA_PATH = os.path.join(BASE_DIR, "db", "schema.sql")
 
 # Dossiers medias uploades depuis l'admin (images / audio des objets)
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_ROOT = os.path.join(DATA_DIR, "media")
 OBJECT_IMAGES_DIR = os.path.join(MEDIA_ROOT, "objects", "images")
 OBJECT_AUDIO_DIR = os.path.join(MEDIA_ROOT, "objects", "audio")
 

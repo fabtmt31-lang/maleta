@@ -587,3 +587,7 @@ body[data-template="mercat"] .disk-bar-used { background: #55612A; }
   body[data-template="mercat"] .games { grid-template-columns: 1fr; }
   .card-span-2 { grid-column: span 1; }
 }
+
+/* v1.2 : version de demonstration (MALETA_DEMO=1) */
+.demo-badge { color: var(--accent); letter-spacing: .06em; }
+.demo-hint { font-weight: 600; }
