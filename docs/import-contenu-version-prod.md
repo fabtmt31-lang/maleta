@@ -9,10 +9,11 @@ Trois cas, du plus simple au plus manuel :
 
 | Situation de la borne | Ce qu'il faut ajouter | Section |
 |---|---|---|
-| Mise à jour en **v1.2** (ce dépôt) | Rien : la page d'import est déjà là | [1](#1-borne-en-v12--rien-à-ajouter) |
+| Mise à jour en **v1.21** (archive des Releases) | Rien : la page d'import (export, CSV) est déjà là | [1](#1-borne-en-v121--rien-à-ajouter) |
 | Restée en **v1.11**, import en ligne de commande | 2 fichiers, aucun fichier existant modifié | [2](#2-borne-en-v111--import-en-ligne-de-commande-2-fichiers) |
 | Restée en **v1.11**, import depuis l'admin | 3 fichiers + 2 fichiers modifiés (patch fourni) | [3](#3-borne-en-v111--page-exportar--importar-dans-ladmin) |
 | Autre version de prod / code réécrit | Lire le format du fichier | [4](#4-format-du-fichier-dexport-pour-réimplémenter-limport) |
+| Écrire les questions dans un tableur | Modèles CSV | [5](#5-écrire-le-contenu-en-csv-sans-lappli) |
 
 ---
 
@@ -25,22 +26,45 @@ Le `.zip` s'utilise **tel quel, sans le décompresser**.
 
 ---
 
-## 1. Borne en v1.2 : rien à ajouter
+## 1. Borne en v1.21 : rien à ajouter
 
-1. Mettre la borne à jour comme d'habitude : copier le dossier
-   `maleta-occitana/` de ce dépôt dans `~/maleta-occitana`, puis
-   `sudo bash install.sh`.
-2. Sur la borne : **Admin > Exportar / Importar** (barre latérale, section
-   Sistèma) > **Importar** > choisir le `.zip`.
-   - **Ajouter** (par défaut) : garde ce qui est déjà sur la borne, ignore les
-     doublons.
-   - **Remplacer** : efface d'abord le contenu des sections cochées.
-   - Case « Apparence et textes de la borne » : cochée seulement pour
-     reprendre aussi le modèle d'interface, la bannière et les textes choisis
-     dans la démo.
-3. Associer les tags NFC aux objets importés (voir [Après l'import](#après-limport)).
+**Mettre la borne à jour** — même procédure que pour toutes les versions
+précédentes, avec l'archive `maleta-occitana-v1.21.zip` publiée dans les
+**Releases** du dépôt (pré-release « demo-latest » ou version numérotée) :
 
-L'import en ligne de commande de la section 2 est aussi disponible en v1.2.
+```bash
+unzip -o maleta-occitana-v1.21.zip -d ~     # remplace ~/maleta-occitana
+cd ~/maleta-occitana
+sudo bash install.sh
+```
+
+La base (`maleta.db`) et les médias déjà sur la borne ne sont jamais touchés
+par la mise à jour. Le numéro de version (bas de la barre latérale de
+l'admin, et page de connexion) doit afficher **v1.21**.
+
+**Importer** — Admin > **Exportar / Importar** (barre latérale, section
+Sistèma) > **Importar** :
+
+- un export complet (`.zip`) de la démo ou d'une autre borne : tout le
+  contenu, images et sons compris ;
+- et/ou un ou plusieurs fichiers **CSV** écrits dans un tableur (voir
+  [5. Écrire le contenu en CSV](#5-écrire-le-contenu-en-csv-sans-lappli)).
+
+Options :
+
+- **Ajouter** (par défaut) : garde ce qui est déjà sur la borne, ignore les
+  doublons. **Remplacer** : efface d'abord le contenu des sections cochées.
+- Case « Apparence et textes de la borne » : cochée seulement pour
+  reprendre aussi le modèle d'interface, la bannière et les textes choisis
+  dans la démo (export .zip uniquement).
+
+Puis associer les tags NFC aux objets importés (voir [Après l'import](#après-limport)).
+
+**Exporter** — même page, bouton « Telecargar l'export » : sauvegarde de
+tout le contenu de la borne, ou pour le recopier dans la démo.
+
+L'import en ligne de commande de la section 2 est aussi disponible en v1.21
+(`importer_contenu.py`, déjà dans l'archive).
 
 ---
 
@@ -51,7 +75,7 @@ ne sont utilisés que lorsqu'on les lance.
 
 | Fichier à ajouter (copier depuis ce dépôt) | Rôle |
 |---|---|
-| `maleta-occitana/managers/content_transfer.py` → `managers/content_transfer.py` | Lecture du .zip et écriture en base / dans `media/` |
+| `maleta-occitana/managers/content_transfer.py` → `managers/content_transfer.py` | Lecture du .zip / des CSV et écriture en base / dans `media/` |
 | `maleta-occitana/importer_contenu.py` → `importer_contenu.py` (racine de l'appli) | Commande d'import |
 
 Les deux ne dépendent que de `config.py`, `db/database.py` et
@@ -96,7 +120,7 @@ chaque partie. Recharger l'écran (F5) si `--reglages` a été utilisé.
 
 ## 3. Borne en v1.11 : page « Exportar / Importar » dans l'admin
 
-Même import qu'en v1.2, depuis l'admin, sans passer à la v1.2 complète
+Même import qu'en v1.21 (export .zip et CSV), depuis l'admin, sans passer à la v1.21 complète
 (ni mode démo, ni autres changements).
 
 ### Méthode rapide : appliquer le patch fourni
@@ -145,7 +169,8 @@ puis ajouter les 3 routes à la fin du fichier (à copier depuis la fin de
 |---|---|---|
 | `GET /admin/transfer` | `transfer()` | Affiche la page |
 | `GET /admin/transfer/export` | `transfer_export()` | Télécharge l'export (.zip) de la borne |
-| `POST /admin/transfer/import` | `transfer_import()` | Importe le fichier envoyé, affiche le rapport |
+| `GET /admin/transfer/templates` | `transfer_templates()` | Télécharge les modèles CSV |
+| `POST /admin/transfer/import` | `transfer_import()` | Importe le ou les fichiers envoyés (.zip, .json, .csv), affiche le rapport |
 
 **`templates/admin/base.html`** — une ligne dans la barre latérale, juste
 après le lien « Configuracion » :
@@ -170,7 +195,7 @@ media/objects/images/...     <- images des objets
 media/objects/audio/...      <- prononciations
 media/library/...            <- photos / vidéos du diaporama
 media/branding/...           <- logo d'école, croix
-tableur/*.csv                <- même contenu en CSV (relecture), jamais lu à l'import
+tableur/*.csv                <- même contenu en CSV (voir section 5), réimportable seul
 LISEZMOI.txt
 ```
 
@@ -225,6 +250,60 @@ Règles appliquées par l'import de référence (`content_transfer.import_bundle
    fichier identique déjà présent → réutilisé ; même nom mais contenu
    différent → renommé `<8 premiers caractères du sha256>_<nom>`.
 6. Tags commençant par `DEMO-` ou `SIMU-` (simulés) : jamais importés.
+
+---
+
+## 5. Écrire le contenu en CSV, sans l'appli
+
+Les questions, mots, vilatges et objets peuvent s'écrire dans **Excel ou
+LibreOffice**, sans ouvrir l'appli, puis s'importer d'un coup (v1.21). Seuls
+les images et les sons doivent passer par l'appli (fiche de chaque objet,
+ou import d'un export `.zip` complet).
+
+**Modèles** : un fichier par type de contenu, avec la ligne d'en-têtes et une
+notice (`LISEZMOI-CSV.txt`) qui décrit chaque colonne :
+
+- dans ce dépôt : [`docs/modeles-csv/`](modeles-csv/) ;
+- dans l'admin : Exportar / Importar > lien « modèles CSV » ;
+- sur la borne : `importer_contenu.py --modeles ~/modeles-csv`.
+
+| Fichier | Colonnes (obligatoires en gras) |
+|---|---|
+| `quiz_questions.csv` | **question**, **reponse_a**, **reponse_b**, **reponse_c**, **bonne_reponse** (A, B ou C), explication, source, actif, ordre |
+| `duel_questions.csv` | **question**, **reponse_a**, **reponse_b**, **bonne_reponse** (A ou B), explication, source, actif, ordre |
+| `vertadier_words.csv` | **mot_francais**, **vient_de_l_occitan** (oui / non), explication, source, actif, ordre |
+| `villages.csv` | **nom_francais**, **nom_occitan**, source, actif, ordre |
+| `objects.csv` | **mot_occitan**, **mot_francais**, categorie, image, son, actif, ordre, tags_nfc |
+| `media_items.csv` | **fichier**, **type** (image / video), legende, duree_secondes, actif, ordre |
+
+Règles :
+
+- Garder la première ligne (en-têtes). L'ordre des colonnes est libre, les
+  colonnes inconnues sont ignorées, les en-têtes acceptent majuscules,
+  accents et espaces (« Bonne réponse » = `bonne_reponse`).
+- Enregistrer en **CSV** : séparateur point-virgule ou virgule, UTF-8 ou
+  l'encodage par défaut d'Excel sous Windows — les deux sont reconnus.
+- Le **type de contenu** est reconnu par le nom du fichier (`quiz`, `duel`,
+  `vertadier`, `vilatge`/`village`, `objet`/`object`, `media`) ou, à défaut,
+  par ses colonnes ; sinon le choisir dans la liste « Type de contenu des
+  fichiers CSV » à l'import (ou `--type` en ligne de commande).
+- `actif` : oui / non, vide = oui. `bonne_reponse` : A, B, C (ou 1, 2, 3).
+- Une ligne incomplète ou invalide n'empêche pas d'importer les autres : elle
+  est ignorée et signalée avec son numéro dans le rapport d'import.
+- `image` / `son` (objets) : si le fichier est déjà dans la médiathèque de
+  la borne, il est relié ; sinon l'objet est importé sans, et le rapport le
+  signale — l'ajouter ensuite depuis la fiche de l'objet. Les photos du
+  diaporama (`media_items.csv`) doivent, elles, déjà être dans la
+  médiathèque.
+- Les fichiers du dossier `tableur/` d'un export `.zip` ont le même format :
+  ils peuvent être modifiés dans un tableur puis réimportés seuls.
+
+En ligne de commande, sur la borne :
+
+```bash
+sudo -u maleta /opt/maleta-occitana/.venv/bin/python /opt/maleta-occitana/importer_contenu.py \
+    /tmp/quiz_questions.csv /tmp/duel_questions.csv
+```
 
 ---
 

@@ -1202,36 +1202,61 @@ def transfer_export():
     )
 
 
+@admin_bp.route("/transfer/templates")
+@login_required
+def transfer_templates():
+    """v1.21 : modeles CSV vides, pour ecrire le contenu dans un tableur."""
+    filename, payload = content_transfer.build_csv_templates()
+    return send_file(
+        io.BytesIO(payload), mimetype="application/zip",
+        as_attachment=True, download_name=filename,
+    )
+
+
 @admin_bp.route("/transfer/import", methods=["POST"])
 @login_required
 def transfer_import():
-    upload = request.files.get("bundle")
-    if not upload or not upload.filename:
-        flash("Choisis d'abord un fichier d'export (.zip).")
+    """Un ou plusieurs fichiers : export complet (.zip / .json) et/ou CSV
+    (v1.21, un fichier par type de contenu). Chaque fichier est importe a son
+    tour, les rapports sont additionnes."""
+    uploads = [f for f in request.files.getlist("bundle") if f and f.filename]
+    if not uploads:
+        flash("Choisis d'abord un fichier d'export (.zip) ou des fichiers CSV.")
         return redirect(url_for("admin.transfer"))
-    try:
-        data, archive = content_transfer.read_bundle(upload)
-        sections = [s["name"] for s in content_transfer.SECTIONS if request.form.get(f"section_{s['name']}")]
-        if not sections and not request.form.get("settings"):
-            flash("Coche au moins une section à importer.")
-            return redirect(url_for("admin.transfer"))
-        report = content_transfer.import_bundle(
-            data, archive, sections,
-            mode=request.form.get("mode", "merge"),
-            import_settings=bool(request.form.get("settings")),
-            import_tags=bool(request.form.get("tags")),
-        )
-    except content_transfer.ImportError_ as exc:
-        flash(str(exc))
+    sections = [s["name"] for s in content_transfer.SECTIONS if request.form.get(f"section_{s['name']}")]
+    if not sections and not request.form.get("settings"):
+        flash("Coche au moins une section à importer.")
         return redirect(url_for("admin.transfer"))
+    csv_section = request.form.get("csv_type") or None
+    if csv_section not in content_transfer.SECTIONS_BY_NAME:
+        csv_section = None
+
+    report = {"sections": {}, "files": 0, "warnings": []}
+    bundle_info = None
+    for upload in uploads:
+        try:
+            data, archive = content_transfer.read_upload(upload.filename, upload.read(), csv_section)
+            part = content_transfer.import_bundle(
+                data, archive, sections,
+                mode=request.form.get("mode", "merge"),
+                import_settings=bool(request.form.get("settings")) and data.get("source") != "csv",
+                import_tags=bool(request.form.get("tags")),
+            )
+        except content_transfer.ImportError_ as exc:
+            report["warnings"].insert(0, f"{upload.filename} non importé : {exc}")
+            continue
+        content_transfer.merge_reports(report, part)
+        if data.get("source") != "csv":
+            bundle_info = {
+                "app_version": data.get("app_version"),
+                "source": data.get("source"),
+                "exported_at": data.get("exported_at"),
+            }
     return render_template(
         "admin/transfer.html",
         sections=content_transfer.SECTIONS,
         current=content_transfer.summarize(content_transfer.build_counts()),
         report=report,
-        bundle_info={
-            "app_version": data.get("app_version"),
-            "source": data.get("source"),
-            "exported_at": data.get("exported_at"),
-        },
+        bundle_info=bundle_info,
+        imported_files=[u.filename for u in uploads],
     )

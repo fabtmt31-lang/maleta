@@ -1,0 +1,68 @@
+La Maleta Occitana - ecrire le contenu dans un tableur (CSV)
+
+Un fichier par type de contenu. Ouvrir le modele dans Excel ou
+LibreOffice, garder la premiere ligne (en-tetes), ajouter une ligne par
+question / mot / objet, puis enregistrer en CSV (separateur
+point-virgule ou virgule, UTF-8 de preference).
+
+Import : Admin > Exportar / Importar > Importar, choisir un ou plusieurs
+fichiers .csv. Le type de contenu est reconnu par le nom du fichier
+(garder par ex. "quiz" dans le nom) ou par ses colonnes. Sur la borne,
+en ligne de commande : importer_contenu.py fichier.csv
+
+Les lignes incompletes sont ignorees et signalees avec leur numero.
+Les images et les sons des objets s'ajoutent ensuite depuis l'admin.
+
+== objects.csv : Objèctes ==
+  mot_occitan          obligatoire
+  mot_francais         obligatoire
+  categorie            facultatif (ex. Animaux)
+  image                facultatif : l'image s'ajoute ensuite depuis l'admin (fiche de l'objet)
+  son                  facultatif : le son s'ajoute ensuite depuis l'admin (fiche de l'objet)
+  actif                oui / non (vide = oui)
+  ordre                facultatif : numero d'ordre
+  tags_nfc             facultatif : UID des tags NFC, separes par des espaces
+
+== vertadier_words.csv : Ven de l'occitan ? ==
+  mot_francais         obligatoire : mot ou expression francaise
+  vient_de_l_occitan   obligatoire : oui / non
+  explication          facultatif : affichee apres la reponse
+  source               facultatif : reference (CNRTL, IEO...)
+  actif                oui / non (vide = oui)
+  ordre                facultatif
+
+== duel_questions.csv : Duèl Occitan ==
+  question             obligatoire
+  reponse_a            obligatoire
+  reponse_b            obligatoire
+  bonne_reponse        obligatoire : A ou B
+  explication          facultatif
+  source               facultatif
+  actif                oui / non (vide = oui)
+  ordre                facultatif
+
+== quiz_questions.csv : Quiz Calandreta ==
+  question             obligatoire
+  reponse_a            obligatoire
+  reponse_b            obligatoire
+  reponse_c            obligatoire
+  bonne_reponse        obligatoire : A, B ou C
+  explication          facultatif
+  source               facultatif
+  actif                oui / non (vide = oui)
+  ordre                facultatif
+
+== villages.csv : Vilatges (Memòria) ==
+  nom_francais         obligatoire (ex. Toulouse)
+  nom_occitan          obligatoire (ex. Tolosa)
+  source               facultatif
+  actif                oui / non (vide = oui)
+  ordre                facultatif
+
+== media_items.csv : Fotos & vidèos ==
+  fichier              obligatoire : la photo/video doit deja etre dans la mediatheque de la borne
+  type                 obligatoire : image ou video
+  legende              facultatif
+  duree_secondes       facultatif : duree d'affichage d'une photo
+  actif                oui / non (vide = oui)
+  ordre                facultatif

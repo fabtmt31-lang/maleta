@@ -1,6 +1,7 @@
-# Construit la version de demonstration de La Maleta Occitana :
-#   - Windows : MaletaOccitana-Demo.exe (un seul fichier, rien a installer)
-#   - Linux   : maleta-occitana-demo_<version>_all.deb (Debian 12+ / Ubuntu 22.04+)
+# Construit La Maleta Occitana :
+#   - demo Windows : MaletaOccitana-Demo.exe (un seul fichier, rien a installer)
+#   - demo Linux   : maleta-occitana-demo_<version>_all.deb (Debian 12+ / Ubuntu 22.04+)
+#   - borne        : maleta-occitana-v<version>.zip (version standard, install.sh)
 #
 # Chaque push publie les deux fichiers dans la pre-release « demo-latest »
 # (page Releases du depot). Un tag v* (ex. v1.2) publie une release definitive.
@@ -86,8 +87,35 @@ jobs:
           name: linux-deb
           path: dist/*.deb
 
+  # Version standard (borne, petit PC Debian) : archive a installer avec
+  # install.sh, comme les archives livrees jusqu'ici.
+  borne-zip:
+    needs: tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive maleta-occitana-v<version>.zip
+        run: bash packaging/build_prod_zip.sh
+      - name: Verification (dependances de la borne, demarrage, import)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-venv python3-dev build-essential swig libpcsclite-dev
+          mkdir -p "$RUNNER_TEMP/borne" && unzip -q dist/maleta-occitana-v*.zip -d "$RUNNER_TEMP/borne"
+          cd "$RUNNER_TEMP/borne/maleta-occitana"
+          python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt
+          .venv/bin/python run_pc.py > serveur.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:5000/admin/login && break; sleep 1; done
+          curl -sf http://127.0.0.1:5000/ | grep -q "Tria un"
+          .venv/bin/python importer_contenu.py "$GITHUB_WORKSPACE/maleta-contenu-demo.zip"
+          .venv/bin/python importer_contenu.py "$GITHUB_WORKSPACE"/docs/modeles-csv/*.csv
+          kill %1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: borne-zip
+          path: dist/maleta-occitana-v*.zip
+
   release:
-    needs: [windows-exe, linux-deb]
+    needs: [windows-exe, linux-deb, borne-zip]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     concurrency: release
@@ -105,10 +133,10 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             gh release create "$GITHUB_REF_NAME" dist/* \
               --title "La Maleta Occitana $GITHUB_REF_NAME — démo" \
-              --notes "Version de démonstration : MaletaOccitana-Demo.exe (Windows 10/11) et paquet .deb (Debian 12+ / Ubuntu 22.04+). Voir le README pour l'installation."
+              --notes "Démo : MaletaOccitana-Demo.exe (Windows 10/11) et paquet .deb (Debian 12+ / Ubuntu 22.04+). Borne (version standard) : maleta-occitana-v*.zip, à installer avec install.sh. Voir le README."
           else
             gh release delete demo-latest --yes --cleanup-tag || true
             gh release create demo-latest dist/* --prerelease --target "$GITHUB_SHA" \
               --title "Démo — dernière version (${GITHUB_REF_NAME})" \
-              --notes "Construite automatiquement depuis la branche ${GITHUB_REF_NAME}, commit ${GITHUB_SHA::7}. MaletaOccitana-Demo.exe : Windows 10/11. Paquet .deb : Debian 12+ / Ubuntu 22.04+."
+              --notes "Construite automatiquement depuis la branche ${GITHUB_REF_NAME}, commit ${GITHUB_SHA::7}. Démo : MaletaOccitana-Demo.exe (Windows 10/11), paquet .deb (Debian 12+ / Ubuntu 22.04+). Borne (version standard) : maleta-occitana-v*.zip, à décompresser dans ~ puis sudo bash install.sh."
           fi

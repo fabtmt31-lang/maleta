@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.2** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.21** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -393,6 +393,29 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.21** (11/11/2026) — **import de fichiers CSV**, demandé par Fabien :
+  les questions et autres contenus peuvent s'écrire directement dans un
+  tableur (Excel, LibreOffice), sans l'appli, puis s'importer depuis
+  **Admin > Exportar / Importar** (un ou plusieurs .csv d'un coup, avec ou
+  sans export .zip) ou en ligne de commande (`importer_contenu.py
+  fichier.csv`). Seuls les images et les sons des objets doivent passer par
+  l'appli.
+  1. Un fichier par type de contenu, colonnes en français (`question`,
+     `reponse_a`…, `bonne_reponse`, `vient_de_l_occitan`, `actif`…).
+     Modèles vides + notice : lien « modèles CSV » de la page d'import,
+     `importer_contenu.py --modeles DOSSIER`, ou `docs/modeles-csv/` à la
+     racine du dépôt.
+  2. Lecture tolérante : point-virgule ou virgule, UTF-8 ou encodage Excel
+     Windows, en-têtes avec majuscules/accents, colonnes dans n'importe quel
+     ordre ; oui/non, A/B/C (ou 1/2/3). Type de contenu reconnu par le nom du
+     fichier, sinon par ses colonnes, sinon choisi à l'import.
+  3. Une ligne incomplète ou invalide est ignorée et **signalée avec son
+     numéro** dans le rapport ; les autres lignes sont importées.
+  4. Les CSV du dossier `tableur/` d'un export ont désormais les mêmes
+     en-têtes en français : modifiables puis réimportables seuls. Les CSV
+     des exports v1.2 (en-têtes techniques) restent importables.
+  Mise à jour de la borne : comme d'habitude, `sudo bash install.sh`
+  (aucune nouvelle dépendance).
 - **v1.2** (21/10/2026) — **version de démonstration + export/import du
   contenu**.
   1. **Admin > Exportar / Importar** (nouvelle page, section Sistèma) :

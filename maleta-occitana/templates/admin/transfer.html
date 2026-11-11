@@ -37,7 +37,7 @@
     </tbody>
   </table>
   <p class="muted" style="margin:10px 0 0">
-    {{ report.files }} fichier(s) média copié(s).{% if report.settings %} Apparence et textes de la borne importés (recharger l'écran du kiosque pour les voir).{% endif %}
+    {% if imported_files %}Fichier(s) : {{ imported_files|join(', ') }}. {% endif %}{{ report.files }} fichier(s) média copié(s).{% if report.settings %} Apparence et textes de la borne importés (recharger l'écran du kiosque pour les voir).{% endif %}
   </p>
   {% if report.warnings %}
   <ul class="muted" style="margin:8px 0 0">
@@ -69,22 +69,40 @@
       </div>
     </form>
     <p class="muted" style="margin:10px 0 0">
-      Le .zip contient aussi un dossier <code>tableur/</code> (fichiers CSV
-      lisibles dans Excel/LibreOffice) pour relire les questions et leurs
-      sources. Jamais exportés : le code PIN, les réglages manette/clavier
-      et les tags NFC simulés.
+      Le .zip contient aussi un dossier <code>tableur/</code> : un fichier CSV
+      par type de contenu, à ouvrir dans Excel/LibreOffice, modifiable puis
+      réimportable seul. Jamais exportés : le code PIN, les réglages
+      manette/clavier et les tags NFC simulés.
     </p>
     <p id="export-status" class="muted" style="margin:10px 0 0"></p>
   </div>
 
   <div class="card elev card-span-2">
     <div class="card-kicker">Importar</div>
-    <div class="card-title">Réimplanter un export</div>
+    <div class="card-title">Réimplanter un export ou des fichiers CSV</div>
+    <!-- v1.21 : en plus de l'export complet (.zip), des fichiers CSV écrits
+         dans un tableur (une section par fichier) -- voir read_csv() dans
+         managers/content_transfer.py. -->
+    <p class="muted" style="margin:0">
+      Les questions, mots, vilatges et objets peuvent s'écrire dans un tableur,
+      sans l'appli : partir des
+      <a href="{{ url_for('admin.transfer_templates') }}">modèles CSV</a>
+      (un fichier par type de contenu, notice incluse). Les images et les
+      sons s'ajoutent ensuite ici, depuis la fiche de chaque objet.
+    </p>
     <form method="post" action="{{ url_for('admin.transfer_import') }}" enctype="multipart/form-data"
           class="object-form" style="background:none;padding:0;max-width:none;" id="import-form">
       <label>
-        Fichier d'export (.zip, ou .json seul)
-        <input type="file" name="bundle" accept=".zip,.json,application/zip,application/json" required>
+        Fichier(s) : export complet (.zip ou .json) et/ou un ou plusieurs .csv
+        <input type="file" name="bundle" multiple
+               accept=".zip,.json,.csv,application/zip,application/json,text/csv" required>
+      </label>
+      <label>
+        Type de contenu des fichiers CSV
+        <select name="csv_type">
+          <option value="">Automatique (d'après le nom du fichier ou ses colonnes)</option>
+          {% for s in sections %}<option value="{{ s.name }}">{{ s.label }}</option>{% endfor %}
+        </select>
       </label>
       <fieldset style="border:0;padding:0;margin:0">
         <legend style="font-weight:700;margin-bottom:6px">Sections à importer</legend>

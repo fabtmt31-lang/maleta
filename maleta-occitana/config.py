@@ -21,7 +21,7 @@ import os
 # navigateur en cache, mauvais dossier déployé...). A METTRE A JOUR à chaque
 # nouvelle archive livrée, en même temps que le numéro de version en tête du
 # README.md -- les deux doivent toujours rester synchronisés.
-APP_VERSION = "1.2"
+APP_VERSION = "1.21"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 

@@ -7,10 +7,26 @@ Borne ludique pour faire découvrir l'occitan et les écoles Calandreta
 |---|---|
 | `maleta-occitana/` | L'application elle-même — **version standard** pour la borne (petit PC Debian + lecteur NFC + manette), installée par `install.sh`. Détails, historique des versions : [`maleta-occitana/README.md`](maleta-occitana/README.md). |
 | `desktop/` | Le lanceur de la **version démo** : la même application dans une simple fenêtre, sur n'importe quel PC Windows ou Linux. |
-| `packaging/` | Construction de l'exécutable Windows (PyInstaller) et du paquet `.deb` Linux. |
-| `.github/workflows/` | Construction automatique des deux, publiés dans les **Releases** du dépôt. |
+| `packaging/` | Construction de l'exécutable Windows (PyInstaller), du paquet `.deb` Linux et de l'archive de la borne. |
+| `.github/workflows/` | Construction et vérification automatiques des trois, publiés dans les **Releases** du dépôt. |
 | `tests/` | Tests automatiques (export / import, clavier et souris de la démo). |
-| `docs/` | [Ce qu'il faut ajouter à la version de prod](docs/import-contenu-version-prod.md) pour importer un export de la démo (+ patch pour la v1.11). |
+| `docs/` | [Guide import / export pour la borne](docs/import-contenu-version-prod.md) (+ patch pour une borne restée en v1.11) et [modèles CSV](docs/modeles-csv/) pour écrire le contenu dans un tableur. |
+
+## Version borne (Debian)
+
+L'archive `maleta-occitana-v<version>.zip` (page **Releases**) s'installe
+et se met à jour exactement comme les précédentes, sans perdre le contenu
+déjà saisi :
+
+```bash
+unzip -o maleta-occitana-v1.21.zip -d ~
+cd ~/maleta-occitana
+sudo bash install.sh
+```
+
+Depuis la v1.2 elle a, comme la démo, la page **Admin > Exportar /
+Importar** (export, import d'un export de la démo) et, depuis la v1.21,
+l'import de **fichiers CSV** (voir plus bas).
 
 ## Version démo
 
@@ -71,7 +87,7 @@ fichier :
 
 1. Dans la démo : **Admin > Exportar / Importar > Telecargar l'export** →
    un fichier `maleta-demo-contenu-AAAAMMJJ-HHMM.zip`.
-2. Sur la borne (version standard 1.2 ou plus) : **Admin > Exportar /
+2. Sur la borne (version standard 1.21, voir ci-dessus) : **Admin > Exportar /
    Importar > Importar**, choisir ce .zip tel quel. Borne restée en v1.11 :
    voir [`docs/import-contenu-version-prod.md`](docs/import-contenu-version-prod.md)
    (2 fichiers à ajouter pour un import en ligne de commande, ou un patch
@@ -82,9 +98,30 @@ fichier :
      la fiche de chaque objet (« Associer un nouveau tag »).
 
 Le .zip contient aussi un dossier `tableur/` : le même contenu en fichiers
-CSV, lisibles dans Excel / LibreOffice, pour relire les questions et leurs
-sources. Ne sont jamais exportés : le code PIN, les réglages manette/clavier
+CSV, lisibles dans Excel / LibreOffice, modifiables puis réimportables seuls.
+Ne sont jamais exportés : le code PIN, les réglages manette/clavier
 (propres à chaque machine) et les tags NFC simulés de la démo.
+
+### Écrire les questions dans un tableur (CSV)
+
+Les questions (Quiz, Duèl), les mots de « Ven de l'occitan ? », les
+vilatges et les objets peuvent s'écrire **directement dans Excel ou
+LibreOffice, sans l'appli**, puis s'importer (démo ou borne, Admin >
+Exportar / Importar > Importar, un ou plusieurs .csv d'un coup). Seuls les
+images et les sons des objets s'ajoutent ensuite par l'appli.
+
+- Modèles (une ligne d'en-têtes par fichier + notice) :
+  [`docs/modeles-csv/`](docs/modeles-csv/), ou le lien « modèles CSV » de la
+  page d'import.
+- Exemple, `quiz_questions.csv` :
+  ```
+  question;reponse_a;reponse_b;reponse_c;bonne_reponse;explication;source;actif;ordre
+  …;…;…;…;B;…;IEO;oui;
+  ```
+- Point-virgule ou virgule, UTF-8 ou encodage Excel : reconnus. Les lignes
+  incomplètes sont ignorées et signalées avec leur numéro.
+- Détail des colonnes et des règles :
+  [guide, section 5](docs/import-contenu-version-prod.md#5-écrire-le-contenu-en-csv-sans-lappli).
 
 L'export marche aussi dans l'autre sens (borne → démo), et sert de
 sauvegarde du contenu de la borne.
@@ -100,6 +137,7 @@ python -m pytest tests                     # tests
 Construire les paquets à la main :
 
 ```bash
+bash packaging/build_prod_zip.sh                    # -> dist/maleta-occitana-v*.zip (borne)
 bash packaging/build_deb.sh                         # -> dist/*.deb (sous Linux)
 pyinstaller --noconfirm packaging/maleta-demo.spec  # -> dist/MaletaOccitana-Demo.exe (sous Windows)
 ```
