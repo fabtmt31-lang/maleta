@@ -23,7 +23,6 @@ import faulthandler
 import logging
 import os
 import re
-import secrets
 import socket
 import subprocess
 import sys
@@ -64,23 +63,6 @@ def _icon_path():
         os.path.join(HERE, "assets", name),
     ]
     return next((p for p in candidates if os.path.isfile(p)), None)
-
-
-def _secret_key(data_dir):
-    """Cle de session Flask propre a cette installation (gardee d'un
-    lancement a l'autre, pour ne pas deconnecter l'admin a chaque fois)."""
-    path = os.path.join(data_dir, ".secret_key")
-    try:
-        with open(path, "r", encoding="ascii") as f:
-            key = f.read().strip()
-            if key:
-                return key
-    except OSError:
-        pass
-    key = secrets.token_hex(32)
-    with open(path, "w", encoding="ascii") as f:
-        f.write(key)
-    return key
 
 
 def _free_port():
@@ -134,7 +116,8 @@ def main():
     os.environ["MALETA_DEMO"] = "1"
     os.environ["MALETA_HARDWARE"] = "dev"
     os.environ["MALETA_DATA_DIR"] = data_dir
-    os.environ.setdefault("MALETA_SECRET_KEY", _secret_key(data_dir))
+    # Cle de session : creee et gardee dans le dossier des donnees par
+    # config.py (v1.22), comme sur la borne.
 
     app_dir = _app_dir()
     lib_dir = os.environ.get("MALETA_LIB_DIR") or os.path.join(os.path.dirname(HERE), "lib")

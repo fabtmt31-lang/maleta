@@ -135,11 +135,17 @@ echo "== 5. Copie du code applicatif =="
 # nulle part (fichier physique disparu). "media" rejoint donc la liste des
 # exclusions, exactement comme ".venv" et "maleta.db" : jamais touche par
 # une mise a jour.
+#
+# v1.22 : meme protection pour ".secret_key" (cle de session de l'admin,
+# creee au premier demarrage -- voir config.py) et "sauvegardes" (exports
+# automatiques faits avant un import en mode "Remplacer").
 mkdir -p "${APP_DIR}"
 rsync -a --delete \
     --exclude '.venv' \
     --exclude 'maleta.db' \
     --exclude 'media' \
+    --exclude '.secret_key' \
+    --exclude 'sauvegardes' \
     --exclude '__pycache__' \
     --exclude '*.pyc' \
     "${SOURCE_DIR}/" "${APP_DIR}/"

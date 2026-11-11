@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.21** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.22** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -393,6 +393,39 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.22** (11/11/2026) — corrections issues de la relecture du code
+  (points 1 à 7 validés par Fabien). Pas de nouvelle fonction de jeu.
+  1. **Import en mode « Remplacer » qui effaçait trop** (bug v1.21) :
+     importer un seul `quiz.csv` vidait aussi les objets, les mots, les
+     duels, les vilatges et le diaporama ; avec plusieurs fichiers du même
+     type, chacun effaçait le précédent. Seules les sections **présentes
+     dans les fichiers** sont maintenant remplacées, une seule fois, puis
+     tous les fichiers sont importés à la suite. Tous les fichiers sont lus
+     avant d'effacer quoi que ce soit (un fichier illisible annule tout,
+     rien n'est effacé), et une **sauvegarde complète automatique** est
+     faite juste avant dans `sauvegardes/` (10 dernières gardées, chemin
+     affiché dans le rapport, colonne « Supprimés » en plus).
+  2. **Démo : le bouton « Escota »** (rejouer le son de l'objet) faisait
+     aussi quitter l'écran Descobèrta — un clic sur un bouton ne vaut plus
+     « continuer ».
+  3. **Memòria abandonnée** : la grille et l'écran « Quantas cartas ? »
+     restaient affichés indéfiniment. Retour automatique à l'accueil après
+     90 s sans action dans la grille, 30 s sur l'écran de choix (relancé à
+     chaque action ; `MALETA_MEMORIA_IDLE` / `MALETA_MEMORIA_CHOICE_IDLE`).
+  4. **Lecteur NFC branché après le démarrage** : il était ignoré jusqu'au
+     redémarrage du service. Le lecteur est maintenant recherché toutes les
+     5 s et activé dès qu'il apparaît (débranchement/retour journalisés une
+     seule fois). Son état s'affiche sur le **tableau de bord** de l'admin
+     (« Lector NFC : Detectat / Absent »). À confirmer sur la borne avec le
+     vrai lecteur (testé ici avec un faux lecteur).
+  5. **Clé de session de l'admin** : la même valeur par défaut, écrite dans
+     le code, servait sur toutes les bornes (une session admin pouvait être
+     fabriquée sans le PIN). Une clé aléatoire est créée au premier
+     démarrage (`.secret_key`, lisible par l'utilisateur de l'appli
+     seulement). `install.sh` exclut `.secret_key` et `sauvegardes/` de la
+     copie de mise à jour. Effet : l'admin est déconnectée une fois, après
+     cette mise à jour.
+  Mise à jour de la borne : comme d'habitude, `sudo bash install.sh`.
 - **v1.21** (11/11/2026) — **import de fichiers CSV**, demandé par Fabien :
   les questions et autres contenus peuvent s'écrire directement dans un
   tableur (Excel, LibreOffice), sans l'appli, puis s'importer depuis

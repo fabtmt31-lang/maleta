@@ -3,3 +3,5 @@ dist/
 __pycache__/
 *.pyc
 *.db
+.secret_key
+sauvegardes/

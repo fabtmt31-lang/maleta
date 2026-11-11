@@ -51,6 +51,18 @@
     </div>
     <a href="{{ url_for('admin.media_list') }}">Gerir →</a>
   </div>
+  <!-- v1.22 : lecteur NFC (voir OmnikeyTagReader.status dans managers/tag_reader.py) -->
+  <div class="dash-frame">
+    <span class="dash-frame-icon">{{ m.icon('nfc', sw=2) }}</span>
+    <div>
+      <div class="dash-frame-title">Lector NFC
+        {% if nfc.kind == 'simulated' %}<span class="pill pill-ok">Simulat</span>
+        {% elif nfc.connected %}<span class="pill pill-ok">Detectat</span>
+        {% else %}<span class="pill pill-todo">Absent</span>{% endif %}
+      </div>
+      <div class="dash-frame-sub">{{ nfc.message }}</div>
+    </div>
+  </div>
   <div class="disk-card">
     <div class="disk-card-label">{{ m.icon('database', sw=2) }}Espace disque</div>
     <div class="disk-bar"><div class="disk-bar-used" style="width: {{ disk.used_percent }}%;"></div></div>

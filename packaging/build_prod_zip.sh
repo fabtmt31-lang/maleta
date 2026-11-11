@@ -21,7 +21,7 @@ OUT="${ROOT}/dist/maleta-occitana-v${VERSION}.zip"
 rm -rf "${BUILD}"
 mkdir -p "${BUILD}" "${ROOT}/dist"
 tar -C "${ROOT}" \
-    --exclude='__pycache__' --exclude='*.pyc' --exclude='maleta.db' \
+    --exclude='__pycache__' --exclude='*.pyc' --exclude='maleta.db' --exclude='.secret_key' --exclude='sauvegardes' \
     -cf - maleta-occitana | tar -C "${BUILD}" -xf -
 # Medias : seulement la structure de dossiers (.gitkeep), comme dans git.
 find "${BUILD}/maleta-occitana/media" -type f ! -name '.gitkeep' -delete

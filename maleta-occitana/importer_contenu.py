@@ -18,8 +18,10 @@ medias copies lui appartiennent) :
 
 Options :
     --apercu       affiche le contenu des fichiers sans rien importer
-    --remplacer    efface d'abord le contenu des sections importees
-                   (par defaut : ajoute, doublons ignores)
+    --remplacer    efface d'abord le contenu des sections presentes dans les
+                   fichiers (un quiz.csv ne remplace que le Quiz) ; sauvegarde
+                   complete faite juste avant, dans sauvegardes/ a cote de la
+                   base (par defaut : ajoute, doublons ignores)
     --sections     liste separee par des virgules (par defaut : toutes)
                    objects,vertadier_words,duel_questions,quiz_questions,villages,media_items
     --type         type de contenu des fichiers .csv, si leur nom ne le dit
@@ -77,8 +79,11 @@ def main():
     app.teardown_appcontext(close_db)
     init_db()
     status = 0
-    total = {"sections": {}, "files": 0, "warnings": []}
     with app.app_context():
+        # v1.22 : tous les fichiers sont lus avant de rien modifier (voir
+        # content_transfer.import_bundles) ; avec --remplacer, un fichier
+        # illisible annule tout.
+        bundles = []
         for path in args.fichiers:
             try:
                 with open(path, "rb") as f:
@@ -87,6 +92,7 @@ def main():
                 print(f"Erreur : {exc}", file=sys.stderr)
                 status = 1
                 continue
+            bundles.append((path, data, archive))
 
             if data.get("source") == "csv":
                 print(f"{path} : fichier CSV")
@@ -96,23 +102,25 @@ def main():
             for entry in content_transfer.summarize(data):
                 if entry["count"] or data.get("source") != "csv":
                     print(f"  - {entry['label']} : {entry['count']}")
-            if args.apercu:
-                continue
+        if args.apercu:
+            return status
+        if status and args.remplacer:
+            print("Import annule (--remplacer) : rien n'a ete efface.", file=sys.stderr)
+            return status
 
-            report = content_transfer.import_bundle(
-                data, archive, sections,
-                mode="replace" if args.remplacer else "merge",
-                import_settings=args.reglages and data.get("source") != "csv",
-                import_tags=not args.sans_tags,
-            )
-            content_transfer.merge_reports(total, report)
+        total = content_transfer.import_bundles(
+            bundles, sections,
+            mode="replace" if args.remplacer else "merge",
+            import_settings=args.reglages,
+            import_tags=not args.sans_tags,
+        )
 
-    if args.apercu:
-        return status
     print("\nImport termine :")
+    if total.get("backup"):
+        print(f"  Sauvegarde d'avant l'import : {total['backup']}")
     for result in total["sections"].values():
-        if result["added"] or result["skipped"]:
-            print(f"  - {result['label']} : {result['added']} ajoute(s), {result['skipped']} ignore(s)")
+        deleted = f"{result['deleted']} supprime(s), " if result.get("deleted") else ""
+        print(f"  - {result['label']} : {deleted}{result['added']} ajoute(s), {result['skipped']} ignore(s)")
     print(f"  - {total['files']} fichier(s) media copie(s)")
     for warning in total["warnings"]:
         print(f"  ! {warning}")

@@ -133,8 +133,10 @@
   document.addEventListener("click", (event) => {
     if (event.button !== 0) return;
     const target = event.target;
-    // Icones Cadre fotó / Admin : deja gerees par kiosk.js.
-    if (target.closest("#menu-admin-icon, #menu-diaporama-icon, .demo-nfc-toggle, .demo-nfc-panel")) return;
+    // Icones Cadre fotó / Admin : deja gerees par kiosk.js. v1.22 : un clic
+    // sur un vrai bouton ou lien de l'ecran (ex. « Escota », qui rejoue le
+    // son de l'objet) garde son propre effet et ne vaut pas « continuer ».
+    if (target.closest("#menu-admin-icon, #menu-diaporama-icon, .demo-nfc-toggle, .demo-nfc-panel, button, a")) return;
 
     let el;
     if ((el = target.closest("#menu-tiles > .tile"))) {

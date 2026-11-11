@@ -9,7 +9,7 @@ Trois cas, du plus simple au plus manuel :
 
 | Situation de la borne | Ce qu'il faut ajouter | Section |
 |---|---|---|
-| Mise à jour en **v1.21** (archive des Releases) | Rien : la page d'import (export, CSV) est déjà là | [1](#1-borne-en-v121--rien-à-ajouter) |
+| Mise à jour en **v1.22** (archive des Releases) | Rien : la page d'import (export, CSV) est déjà là | [1](#1-borne-en-v122--rien-à-ajouter) |
 | Restée en **v1.11**, import en ligne de commande | 2 fichiers, aucun fichier existant modifié | [2](#2-borne-en-v111--import-en-ligne-de-commande-2-fichiers) |
 | Restée en **v1.11**, import depuis l'admin | 3 fichiers + 2 fichiers modifiés (patch fourni) | [3](#3-borne-en-v111--page-exportar--importar-dans-ladmin) |
 | Autre version de prod / code réécrit | Lire le format du fichier | [4](#4-format-du-fichier-dexport-pour-réimplémenter-limport) |
@@ -26,21 +26,21 @@ Le `.zip` s'utilise **tel quel, sans le décompresser**.
 
 ---
 
-## 1. Borne en v1.21 : rien à ajouter
+## 1. Borne en v1.22 : rien à ajouter
 
 **Mettre la borne à jour** — même procédure que pour toutes les versions
-précédentes, avec l'archive `maleta-occitana-v1.21.zip` publiée dans les
+précédentes, avec l'archive `maleta-occitana-v1.22.zip` publiée dans les
 **Releases** du dépôt (pré-release « demo-latest » ou version numérotée) :
 
 ```bash
-unzip -o maleta-occitana-v1.21.zip -d ~     # remplace ~/maleta-occitana
+unzip -o maleta-occitana-v1.22.zip -d ~     # remplace ~/maleta-occitana
 cd ~/maleta-occitana
 sudo bash install.sh
 ```
 
 La base (`maleta.db`) et les médias déjà sur la borne ne sont jamais touchés
 par la mise à jour. Le numéro de version (bas de la barre latérale de
-l'admin, et page de connexion) doit afficher **v1.21**.
+l'admin, et page de connexion) doit afficher **v1.22**.
 
 **Importer** — Admin > **Exportar / Importar** (barre latérale, section
 Sistèma) > **Importar** :
@@ -53,7 +53,15 @@ Sistèma) > **Importar** :
 Options :
 
 - **Ajouter** (par défaut) : garde ce qui est déjà sur la borne, ignore les
-  doublons. **Remplacer** : efface d'abord le contenu des sections cochées.
+  doublons. **Remplacer** : efface d'abord le contenu des sections cochées
+  **présentes dans le ou les fichiers** — un `quiz.csv` ne remplace que le
+  Quiz, un export `.zip` complet remplace tout ce qui est coché. Plusieurs
+  fichiers du même type s'additionnent. Tous les fichiers sont lus avant
+  d'effacer quoi que ce soit : si l'un est illisible, rien n'est effacé.
+  Une **sauvegarde complète** est faite juste avant, dans `sauvegardes/` à
+  côté de la base (`/opt/maleta-occitana/sauvegardes/` sur la borne, les 10
+  dernières sont gardées) ; son chemin s'affiche dans le rapport. Pour
+  revenir en arrière : réimporter cette sauvegarde en mode « Remplacer ».
 - Case « Apparence et textes de la borne » : cochée seulement pour
   reprendre aussi le modèle d'interface, la bannière et les textes choisis
   dans la démo (export .zip uniquement).
@@ -63,7 +71,7 @@ Puis associer les tags NFC aux objets importés (voir [Après l'import](#après-
 **Exporter** — même page, bouton « Telecargar l'export » : sauvegarde de
 tout le contenu de la borne, ou pour le recopier dans la démo.
 
-L'import en ligne de commande de la section 2 est aussi disponible en v1.21
+L'import en ligne de commande de la section 2 est aussi disponible en v1.22
 (`importer_contenu.py`, déjà dans l'archive).
 
 ---
@@ -108,7 +116,7 @@ sudo -u maleta /opt/maleta-occitana/.venv/bin/python /opt/maleta-occitana/import
 | Option | Effet |
 |---|---|
 | `--apercu` | Affiche le nombre d'éléments par section, n'importe rien |
-| `--remplacer` | Efface d'abord le contenu des sections importées |
+| `--remplacer` | Efface d'abord le contenu des sections présentes dans les fichiers (sauvegarde complète juste avant, dans `sauvegardes/`) ; un fichier illisible annule tout |
 | `--sections objects,quiz_questions` | N'importe que ces sections (`objects`, `vertadier_words`, `duel_questions`, `quiz_questions`, `villages`, `media_items`) |
 | `--reglages` | Importe aussi l'apparence et les textes de la borne |
 | `--sans-tags` | N'importe pas les tags NFC réels (un export de démo n'en contient pas) |
@@ -120,7 +128,7 @@ chaque partie. Recharger l'écran (F5) si `--reglages` a été utilisé.
 
 ## 3. Borne en v1.11 : page « Exportar / Importar » dans l'admin
 
-Même import qu'en v1.21 (export .zip et CSV), depuis l'admin, sans passer à la v1.21 complète
+Même import qu'en v1.22 (export .zip et CSV), depuis l'admin, sans passer à la v1.22 complète
 (ni mode démo, ni autres changements).
 
 ### Méthode rapide : appliquer le patch fourni
@@ -313,6 +321,9 @@ sudo -u maleta /opt/maleta-occitana/.venv/bin/python /opt/maleta-occitana/import
   Admin > Objèctes & tags > fiche de l'objet > « Associer un nouveau tag »,
   puis poser le tag physique sur le lecteur.
 - **Tableau de bord** : vérifier que les jeux passent en « Jogable ».
-- **Sauvegarde** : avant un import en mode « Remplacer », faire d'abord un
-  export de la borne (même page, ou copier `/opt/maleta-occitana/maleta.db`
-  et `/opt/maleta-occitana/media/`).
+- **Sauvegarde** : un import en mode « Remplacer » fait automatiquement une
+  sauvegarde complète juste avant (`sauvegardes/` à côté de la base). Pour
+  une sauvegarde à un autre moment : bouton « Telecargar l'export ».
+  Borne restée en **v1.11** (sections 2 et 3) : son `install.sh` ne protège
+  pas le dossier `sauvegardes/` — copier les sauvegardes ailleurs avant une
+  mise à jour.

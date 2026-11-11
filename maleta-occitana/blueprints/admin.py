@@ -189,6 +189,8 @@ def dashboard():
         disk=disk,
         disk_free_label=mediatheque_manager.format_bytes(disk["free_bytes"]),
         disk_total_label=mediatheque_manager.format_bytes(disk["total_bytes"]),
+        # v1.22 : etat du lecteur NFC (detecte / absent, recherche en continu)
+        nfc=current_app.extensions["tag_reader"].status(),
     )
 
 
@@ -1231,21 +1233,31 @@ def transfer_import():
     if csv_section not in content_transfer.SECTIONS_BY_NAME:
         csv_section = None
 
-    report = {"sections": {}, "files": 0, "warnings": []}
-    bundle_info = None
+    mode = request.form.get("mode", "merge")
+    # v1.22 : tous les fichiers sont LUS avant de rien modifier. En mode
+    # "Remplacer", un seul fichier illisible annule tout l'import (rien n'est
+    # efface) ; en mode "Ajouter", les autres fichiers sont quand meme importes.
+    bundles, errors = [], []
     for upload in uploads:
         try:
             data, archive = content_transfer.read_upload(upload.filename, upload.read(), csv_section)
-            part = content_transfer.import_bundle(
-                data, archive, sections,
-                mode=request.form.get("mode", "merge"),
-                import_settings=bool(request.form.get("settings")) and data.get("source") != "csv",
-                import_tags=bool(request.form.get("tags")),
-            )
         except content_transfer.ImportError_ as exc:
-            report["warnings"].insert(0, f"{upload.filename} non importé : {exc}")
+            errors.append(f"{upload.filename} non importé : {exc}")
             continue
-        content_transfer.merge_reports(report, part)
+        bundles.append((upload.filename, data, archive))
+    if errors and mode == "replace":
+        flash("Import annulé, rien n'a été effacé : " + " — ".join(errors))
+        return redirect(url_for("admin.transfer"))
+
+    report = content_transfer.import_bundles(
+        bundles, sections,
+        mode=mode,
+        import_settings=bool(request.form.get("settings")),
+        import_tags=bool(request.form.get("tags")),
+    )
+    report["warnings"][:0] = errors
+    bundle_info = None
+    for _, data, _ in bundles:
         if data.get("source") != "csv":
             bundle_info = {
                 "app_version": data.get("app_version"),

@@ -21,7 +21,7 @@ import os
 # navigateur en cache, mauvais dossier déployé...). A METTRE A JOUR à chaque
 # nouvelle archive livrée, en même temps que le numéro de version en tête du
 # README.md -- les deux doivent toujours rester synchronisés.
-APP_VERSION = "1.21"
+APP_VERSION = "1.22"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -78,8 +78,41 @@ DIAPORAMA_DEFAULT_IMAGE_SECONDS = int(os.environ.get("MALETA_DIAPORAMA_SECONDS",
 # base et retombe sur cette valeur (voir run_pc.py / run_dev.py).
 ADMIN_PIN = os.environ.get("MALETA_ADMIN_PIN", "1234")
 
-# Cle secrete Flask (sessions admin). A changer en prod via variable d'environnement.
-SECRET_KEY = os.environ.get("MALETA_SECRET_KEY", "dev-secret-a-changer")
+# Cle secrete Flask (signe le cookie de session de l'admin).
+# v1.22 (revue de code) : il n'y avait jusqu'ici qu'une valeur par defaut
+# ecrite dans le code, la meme sur toutes les bornes -- quiconque la
+# connaissait pouvait fabriquer une session admin sans le PIN. Desormais une
+# cle aleatoire est creee au premier demarrage dans DATA_DIR/.secret_key
+# (lisible par l'utilisateur de l'appli seulement), puis reutilisee. Une
+# variable d'environnement MALETA_SECRET_KEY reste prioritaire.
+# install.sh exclut ce fichier de la copie de mise a jour (sinon chaque mise
+# a jour l'effacerait et deconnecterait l'admin).
+SECRET_KEY_FILE = os.path.join(DATA_DIR, ".secret_key")
+
+
+def _load_or_create_secret_key():
+    try:
+        with open(SECRET_KEY_FILE, "r", encoding="ascii") as f:
+            key = f.read().strip()
+        if key:
+            return key
+    except OSError:
+        pass
+    import secrets
+    key = secrets.token_hex(32)
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        fd = os.open(SECRET_KEY_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="ascii") as f:
+            f.write(key)
+    except OSError:
+        # Dossier non inscriptible : cle valable jusqu'au prochain demarrage
+        # seulement (l'admin devra se reconnecter apres un redemarrage).
+        pass
+    return key
+
+
+SECRET_KEY = os.environ.get("MALETA_SECRET_KEY") or _load_or_create_secret_key()
 
 # Materiel : "dev" (pas de lecteur NFC branche -> simulation) ou "pc" (petit
 # PC Debian avec le vrai lecteur OMNIKEY en USB/PC-SC).
@@ -215,6 +248,12 @@ MEMORIA_GRID_COLUMNS = int(os.environ.get("MALETA_MEMORIA_GRID_COLUMNS", "6"))
 # correspondent pas) ou de les figer definitivement (si elles correspondent) --
 # assez long pour qu'un enfant ait le temps de memoriser ce qu'il voit.
 MEMORIA_REVEAL_SECONDS = 1.4
+# v1.22 : retour automatique a l'accueil apres ce delai SANS AUCUNE action
+# du joueur (relance a chaque deplacement/carte retournee) -- la Memòria et
+# son ecran de choix "Quantas cartas ?" sont les seuls jeux sans minuteur de
+# question : abandonnes, ils restaient affiches indefiniment sur la borne.
+MEMORIA_IDLE_SECONDS = int(os.environ.get("MALETA_MEMORIA_IDLE", "90"))
+MEMORIA_CHOICE_IDLE_SECONDS = int(os.environ.get("MALETA_MEMORIA_CHOICE_IDLE", "30"))
 MEMORIA_FIN_DISPLAY_SECONDS = 12
 
 # v0.8 : jeu "Quiz Calandreta" (question de culture/langue occitane, 3

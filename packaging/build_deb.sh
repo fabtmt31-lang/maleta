@@ -35,7 +35,7 @@ echo "== Code de l'appli =="
 # Jamais de base ni de medias de developpement dans le paquet : les donnees
 # vivent dans ~/.local/share/maleta-occitana-demo.
 tar -C "${ROOT}" \
-    --exclude='__pycache__' --exclude='*.pyc' --exclude='maleta.db' \
+    --exclude='__pycache__' --exclude='*.pyc' --exclude='maleta.db' --exclude='.secret_key' --exclude='sauvegardes' \
     --exclude='maleta-occitana/media/*/*' --exclude='maleta-occitana/media/*/*/*' \
     -cf - maleta-occitana desktop | tar -C "${OPT}" -xf -
 rm -f "${OPT}/desktop/assets/maleta-occitana.ico"

@@ -19,7 +19,7 @@ et se met à jour exactement comme les précédentes, sans perdre le contenu
 déjà saisi :
 
 ```bash
-unzip -o maleta-occitana-v1.21.zip -d ~
+unzip -o maleta-occitana-v1.22.zip -d ~
 cd ~/maleta-occitana
 sudo bash install.sh
 ```
@@ -87,13 +87,14 @@ fichier :
 
 1. Dans la démo : **Admin > Exportar / Importar > Telecargar l'export** →
    un fichier `maleta-demo-contenu-AAAAMMJJ-HHMM.zip`.
-2. Sur la borne (version standard 1.21, voir ci-dessus) : **Admin > Exportar /
+2. Sur la borne (version standard 1.22, voir ci-dessus) : **Admin > Exportar /
    Importar > Importar**, choisir ce .zip tel quel. Borne restée en v1.11 :
    voir [`docs/import-contenu-version-prod.md`](docs/import-contenu-version-prod.md)
    (2 fichiers à ajouter pour un import en ligne de commande, ou un patch
    pour la page d'admin).
    - « Ajouter » garde le contenu déjà présent et ignore les doublons ;
-     « Remplacer » efface d'abord les sections cochées.
+     « Remplacer » efface d'abord les sections cochées présentes dans le ou
+     les fichiers, après une sauvegarde automatique.
    - Les objets venant de la démo n'ont pas de tag NFC : les associer depuis
      la fiche de chaque objet (« Associer un nouveau tag »).
 

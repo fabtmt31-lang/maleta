@@ -44,6 +44,12 @@ class TagReader:
     def stop(self):
         raise NotImplementedError
 
+    def status(self):
+        """v1.22 : etat du lecteur pour le tableau de bord de l'admin.
+        dict {"kind": "simulated"|"pcsc", "connected": bool, "readers": [...],
+        "message": str}."""
+        raise NotImplementedError
+
 
 class SimulatedTagReader(TagReader):
     """Pour le developpement sans lecteur NFC branche."""
@@ -57,6 +63,10 @@ class SimulatedTagReader(TagReader):
 
     def stop(self):
         self._on_uid = None
+
+    def status(self):
+        return {"kind": "simulated", "connected": True, "readers": [],
+                "message": "Lecteur simulé (mode dev / démo, pas de lecteur réel)"}
 
     def simulate_uid(self, uid):
         """Appelee depuis une route Flask (kiosque en test, ou admin) pour
@@ -109,6 +119,13 @@ class OmnikeyTagReader(TagReader):
         self._card_monitor = None
         self._observer = None
         self._lock = threading.Lock()
+        # v1.22 : surveillance du lecteur (voir _watch). `_readers` : derniers
+        # lecteurs PC/SC vus ; `_problem` : message d'erreur courant (pyscard
+        # ou pcscd absent), None si tout va bien.
+        self._readers = []
+        self._problem = None
+        self._stop_event = threading.Event()
+        self._watch_thread = None
 
     def start(self, on_uid):
         # Import paresseux : ne casse rien si pyscard/pcscd sont absents tant
@@ -124,19 +141,63 @@ class OmnikeyTagReader(TagReader):
                 "systeme pcscd/libpcsclite-dev/swig, puis `pip install pyscard`).",
                 exc,
             )
+            self._problem = "pyscard non installé (voir install.sh)"
             return
 
         self._on_uid = on_uid
+        self._pcsc = (CardMonitor, CardObserver, toHexString, pcsc_readers)
+        # v1.22 : avant, un lecteur absent au demarrage (branche apres coup,
+        # pcscd pas encore pret) desactivait le NFC jusqu'au redemarrage du
+        # service. Le lecteur est desormais surveille en tache de fond.
+        self._stop_event.clear()
+        self._watch_thread = threading.Thread(target=self._watch, name="nfc-watch", daemon=True)
+        self._watch_thread.start()
 
-        available = [str(r) for r in pcsc_readers()]
-        if not available:
-            logger.error(
-                "Aucun lecteur PC/SC detecte - lecteur NFC desactive. Verifie : "
-                "le lecteur OMNIKEY est branche, le service pcscd est demarre "
-                "(`systemctl status pcscd`), et - en VM - que le passthrough "
-                "USB du lecteur est actif cote hyperviseur."
-            )
-            return
+    # Intervalle de surveillance du lecteur (secondes).
+    WATCH_SECONDS = 5
+
+    def _watch(self):
+        """Toutes les WATCH_SECONDS : liste les lecteurs PC/SC, active la
+        lecture des tags des qu'un lecteur est present, et journalise chaque
+        changement (branche / debranche) une seule fois -- pas a chaque tour."""
+        was_present = None
+        while not self._stop_event.is_set():
+            available = self._list_readers()
+            present = bool(available)
+            if present != was_present:
+                if present:
+                    logger.info("Lecteur(s) PC/SC detecte(s) : %s", available)
+                    self._warn_if_filter_mismatch(available)
+                elif was_present:
+                    logger.warning("Lecteur NFC debranche - en attente de son retour")
+                else:
+                    logger.error(
+                        "Aucun lecteur PC/SC detecte - nouvelle tentative toutes les %s s. "
+                        "Verifie : le lecteur OMNIKEY est branche, le service pcscd est demarre "
+                        "(`systemctl status pcscd`), et - en VM - que le passthrough USB du "
+                        "lecteur est actif cote hyperviseur.",
+                        self.WATCH_SECONDS,
+                    )
+                was_present = present
+            if present and self._card_monitor is None:
+                self._attach_monitor()
+            self._stop_event.wait(self.WATCH_SECONDS)
+
+    def _list_readers(self):
+        pcsc_readers = self._pcsc[3]
+        try:
+            available = [str(r) for r in pcsc_readers()]
+            self._problem = None
+        except Exception as exc:  # pcscd arrete, contexte PC/SC impossible...
+            available = []
+            if self._problem is None:
+                logger.error("Service PC/SC inaccessible (%s) - pcscd est-il demarre ?", exc)
+            self._problem = "Service pcscd inaccessible"
+        with self._lock:
+            self._readers = available
+        return available
+
+    def _warn_if_filter_mismatch(self, available):
         if self._reader_name_filter and not any(
             self._reader_name_filter.lower() in r.lower() for r in available
         ):
@@ -145,8 +206,9 @@ class OmnikeyTagReader(TagReader):
                 "utilisation du premier lecteur PC/SC disponible",
                 self._reader_name_filter, available,
             )
-        logger.info("Lecteurs PC/SC detectes : %s", available)
 
+    def _attach_monitor(self):
+        CardMonitor, CardObserver, toHexString, _ = self._pcsc
         outer_self = self
 
         class _TagObserver(CardObserver):
@@ -155,10 +217,27 @@ class OmnikeyTagReader(TagReader):
                 for card in added_cards:
                     outer_self._handle_card_added(card, toHexString)
 
-        self._observer = _TagObserver()
-        self._card_monitor = CardMonitor()
-        self._card_monitor.addObserver(self._observer)
+        try:
+            self._observer = _TagObserver()
+            self._card_monitor = CardMonitor()
+            self._card_monitor.addObserver(self._observer)
+        except Exception:
+            logger.exception("Impossible de demarrer la surveillance des tags - nouvel essai")
+            self._card_monitor = None
+            self._observer = None
+            return
         logger.info("OmnikeyTagReader demarre (surveillance PC/SC active)")
+
+    def status(self):
+        with self._lock:
+            readers = list(self._readers)
+        if self._problem:
+            message = f"{self._problem} — le lecteur est recherché toutes les {self.WATCH_SECONDS} s"
+        elif readers:
+            message = "Lecteur détecté : " + ", ".join(readers)
+        else:
+            message = f"Aucun lecteur branché — recherché toutes les {self.WATCH_SECONDS} s"
+        return {"kind": "pcsc", "connected": bool(readers), "readers": readers, "message": message}
 
     def _handle_card_added(self, card, to_hex_string):
         # v1.03 (revue de code) : la connexion PC/SC est desormais refermee
@@ -198,6 +277,7 @@ class OmnikeyTagReader(TagReader):
                 logger.exception("Erreur pendant le traitement du tag %s", uid)
 
     def stop(self):
+        self._stop_event.set()
         if self._card_monitor and self._observer:
             self._card_monitor.deleteObserver(self._observer)
         self._card_monitor = None

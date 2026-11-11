@@ -546,12 +546,48 @@ def summarize(data):
 
 
 def import_bundle(data, archive, sections, mode="merge", import_settings=False, import_tags=True):
-    """Importe les sections demandees. mode "merge" : ajoute ce qui n'existe
-    pas encore (doublons ignores, contenu existant intact) ; mode "replace" :
-    vide d'abord chaque section importee. Renvoie un rapport
-    {section: {"added": n, "skipped": n}, "files": n, "warnings": [...]}."""
+    """Importe un seul fichier deja lu (voir import_bundles)."""
+    return import_bundles([("", data, archive)], sections, mode, import_settings, import_tags)
+
+
+def import_bundles(bundles, sections, mode="merge", import_settings=False, import_tags=True):
+    """Importe plusieurs fichiers DEJA LUS (read_upload), en une operation.
+    `bundles` : liste de (nom_de_fichier, data, archive).
+
+    mode "merge" : ajoute ce qui n'existe pas encore (doublons ignores,
+    contenu existant intact). mode "replace" (v1.22) : vide d'abord, UNE
+    seule fois, les sections cochees qui sont PRESENTES dans au moins un des
+    fichiers -- un quiz.csv ne vide plus que le Quiz, et deux quiz.csv
+    s'additionnent. Une sauvegarde complete est faite juste avant
+    (create_backup). Renvoie un rapport
+    {"sections": {section: {"label", "added", "skipped", "deleted"}},
+     "files": n, "warnings": [...], "backup": chemin_ou_None}."""
     if mode not in ("merge", "replace"):
         raise ImportError_("Mode d'import inconnu.")
+    db = get_db()
+    report = {"sections": {}, "files": 0, "warnings": [], "backup": None}
+    if mode == "replace":
+        to_clear = [
+            name for name in sections
+            if name in SECTIONS_BY_NAME and any(name in data for _, data, _ in bundles)
+        ]
+        if to_clear:
+            report["backup"] = create_backup()
+            for name in to_clear:
+                section = SECTIONS_BY_NAME[name]
+                deleted = db.execute(f"SELECT COUNT(*) AS n FROM {section['table']}").fetchone()["n"]
+                db.execute(f"DELETE FROM {section['table']}")
+                report["sections"][name] = {"label": section["label"], "added": 0, "skipped": 0, "deleted": deleted}
+            db.commit()
+    for _, data, archive in bundles:
+        # Apparence/textes : seulement depuis un export complet, jamais un CSV.
+        with_settings = import_settings and data.get("source") != "csv"
+        merge_reports(report, _import_one(data, archive, sections, with_settings, import_tags))
+    return report
+
+
+def _import_one(data, archive, sections, import_settings, import_tags):
+    """Ajoute le contenu d'un fichier (jamais d'effacement ici)."""
     db = get_db()
     report = {"sections": {}, "files": 0, "warnings": []}
     file_cache = {}
@@ -597,12 +633,12 @@ def import_bundle(data, archive, sections, mode="merge", import_settings=False, 
         section = SECTIONS_BY_NAME.get(section_name)
         if section is None:
             continue
+        if section_name not in data:
+            continue  # section absente du fichier (ex. un CSV n'en a qu'une)
         items = data.get(section_name) or []
         if not isinstance(items, list):
             raise ImportError_(f"Section « {section['label']} » invalide.")
         added = skipped = 0
-        if mode == "replace":
-            db.execute(f"DELETE FROM {section['table']}")
         existing_keys = {
             _key(section, dict(row))
             for row in db.execute(f"SELECT {', '.join(section['key'])} FROM {section['table']}")
@@ -676,17 +712,45 @@ def import_bundle(data, archive, sections, mode="merge", import_settings=False, 
     return report
 
 
+BACKUP_DIR_NAME = "sauvegardes"
+BACKUP_KEEP = 10
+
+
+def create_backup():
+    """v1.22 : export complet (medias compris) enregistre a cote de la base,
+    avant un import qui efface du contenu (mode "Remplacer"). Garde les
+    BACKUP_KEEP plus recents. Renvoie le chemin du fichier cree."""
+    backup_dir = os.path.join(os.path.dirname(os.path.abspath(config.DATABASE_PATH)), BACKUP_DIR_NAME)
+    os.makedirs(backup_dir, exist_ok=True)
+    _, payload = build_export(include_media=True, include_settings=True)
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = os.path.join(backup_dir, f"maleta-sauvegarde-{stamp}.zip")
+    with open(path, "wb") as f:
+        f.write(payload)
+    backups = sorted(
+        name for name in os.listdir(backup_dir)
+        if name.startswith("maleta-sauvegarde-") and name.endswith(".zip")
+    )
+    for name in backups[:-BACKUP_KEEP]:
+        os.remove(os.path.join(backup_dir, name))
+    return path
+
+
 def merge_reports(total, part):
     """Additionne le rapport d'import `part` dans `total` (import de
     plusieurs fichiers en une fois)."""
     for name, result in part["sections"].items():
-        current = total["sections"].setdefault(name, {"label": result["label"], "added": 0, "skipped": 0})
+        current = total["sections"].setdefault(
+            name, {"label": result["label"], "added": 0, "skipped": 0, "deleted": 0})
         current["added"] += result["added"]
         current["skipped"] += result["skipped"]
+        current["deleted"] = current.get("deleted", 0) + result.get("deleted", 0)
     total["files"] += part["files"]
     total["warnings"].extend(part["warnings"])
     if part.get("settings"):
         total["settings"] = True
+    if part.get("backup"):
+        total["backup"] = part["backup"]
 
 
 def _store_file(target_dir, name, content):

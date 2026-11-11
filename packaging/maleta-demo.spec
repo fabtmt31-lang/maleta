@@ -18,9 +18,9 @@ APP_PACKAGES = ("app", "config", "managers", "blueprints", "db", "run_dev", "run
 def app_datas():
     out = []
     for folder, dirs, files in os.walk(APP):
-        dirs[:] = [d for d in dirs if d not in ("__pycache__", "media", "docs")]
+        dirs[:] = [d for d in dirs if d not in ("__pycache__", "media", "docs", "sauvegardes")]
         for name in files:
-            if name.endswith((".pyc", ".db")) or name == "install.sh":
+            if name.endswith((".pyc", ".db")) or name in ("install.sh", ".secret_key"):
                 continue
             out.append((os.path.join(folder, name), os.path.relpath(folder, ROOT)))
     return out

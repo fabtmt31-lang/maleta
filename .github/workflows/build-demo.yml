@@ -106,7 +106,7 @@ jobs:
           .venv/bin/python run_pc.py > serveur.log 2>&1 &
           for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:5000/admin/login && break; sleep 1; done
           curl -sf http://127.0.0.1:5000/ | grep -q "Tria un"
-          .venv/bin/python importer_contenu.py "$GITHUB_WORKSPACE/maleta-contenu-demo.zip"
+          .venv/bin/python importer_contenu.py "$GITHUB_WORKSPACE/tests/fixtures/maleta-contenu-demo.zip"
           .venv/bin/python importer_contenu.py "$GITHUB_WORKSPACE"/docs/modeles-csv/*.csv
           kill %1
       - uses: actions/upload-artifact@v4

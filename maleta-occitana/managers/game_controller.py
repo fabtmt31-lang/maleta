@@ -1062,6 +1062,7 @@ class GameController:
                 "notice": None,
             }
         self._broadcast_state()
+        self._reset_idle_timer(config.MEMORIA_CHOICE_IDLE_SECONDS)
 
     def _move_memoria_choice_selection(self, delta):
         with self._lock:
@@ -1075,6 +1076,7 @@ class GameController:
             ) % len(MEMORIA_CHOICE_OPTIONS)
             self.memoria_choice["notice"] = None
         self._broadcast_state()
+        self._reset_idle_timer(config.MEMORIA_CHOICE_IDLE_SECONDS)
 
     def _confirm_memoria_choice(self):
         """Valide l'option en surbrillance sur l'ecran "Quantas cartas ?" et
@@ -1102,6 +1104,7 @@ class GameController:
                         f"{config.MEMORIA_PAIR_COUNT_SMALL} parelhs)."
                     )
             self._broadcast_state()
+            self._reset_idle_timer(config.MEMORIA_CHOICE_IDLE_SECONDS)
             return
 
         self.start_memoria(activity_id, pair_count)
@@ -1155,6 +1158,7 @@ class GameController:
                 "total_pairs": len(chosen),
             }
         self._broadcast_state()
+        self._reset_idle_timer(config.MEMORIA_IDLE_SECONDS)
 
     def _move_memoria_cursor(self, delta):
         with self._lock:
@@ -1169,6 +1173,7 @@ class GameController:
             total = len(self.memoria["cards"])
             self.memoria["cursor"] = (self.memoria["cursor"] + delta) % total
         self._broadcast_state()
+        self._reset_idle_timer(config.MEMORIA_IDLE_SECONDS)
 
     def _flip_memoria_card(self):
         reveal_pending = False
@@ -1206,6 +1211,7 @@ class GameController:
                     finished = len(memoria["matched"]) == len(memoria["cards"])
                 reveal_pending = True
         self._broadcast_state()
+        self._reset_idle_timer(config.MEMORIA_IDLE_SECONDS)
         if reveal_pending:
             self._start_epoch_timer(
                 "_memoria_reveal_timer", config.MEMORIA_REVEAL_SECONDS, lambda: self._resolve_memoria_reveal(finished)
@@ -1356,14 +1362,19 @@ class GameController:
 
     # --- minuteur d'inactivite -----------------------------------------------
 
-    def _reset_idle_timer(self):
-        """Utilise seulement depuis DESCOBERTA (voir on_tag_scanned) : si
-        personne ne fait rien apres avoir decouvert un objet, on revient a
-        l'accueil (menu). Le MENU lui-meme n'a plus de minuteur d'inactivite
-        (voir go_to_menu) et TROBA gere son propre rythme via ses minuteurs
-        de mot/feedback/fin de manche."""
+    def _reset_idle_timer(self, seconds=None):
+        """Retour a l'accueil (menu) si personne ne fait rien : depuis
+        DESCOBERTA (voir on_tag_scanned, config.IDLE_TIMEOUT_SECONDS) et,
+        depuis la v1.22, depuis la Memòria et son ecran "Quantas cartas ?"
+        (relance a chaque action du joueur ; seuls jeux sans minuteur de
+        question, ils restaient affiches indefiniment une fois abandonnes).
+        Le MENU lui-meme n'a pas de minuteur d'inactivite (voir go_to_menu)
+        et les autres jeux gerent leur propre rythme (minuteurs de question,
+        de retour visuel et de fin de manche)."""
         self._cancel_idle_timer()
-        self._start_epoch_timer("_idle_timer", config.IDLE_TIMEOUT_SECONDS, self.go_to_menu)
+        self._start_epoch_timer(
+            "_idle_timer", seconds or config.IDLE_TIMEOUT_SECONDS, self.go_to_menu
+        )
 
     def _cancel_idle_timer(self):
         if self._idle_timer is not None:

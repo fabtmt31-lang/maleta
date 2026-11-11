@@ -7,7 +7,7 @@ import zipfile
 from test_content_transfer import APP_DIR, count, make_client
 
 ROOT = os.path.dirname(APP_DIR)
-USER_EXPORT = os.path.join(ROOT, "maleta-contenu-demo.zip")
+USER_EXPORT = os.path.join(ROOT, "tests", "fixtures", "maleta-contenu-demo.zip")
 
 
 def import_files(client, files, **form):
