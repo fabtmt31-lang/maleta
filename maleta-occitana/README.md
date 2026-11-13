@@ -359,6 +359,19 @@ machine pour valider la chaîne complète.
 `docs/guide-test-vm.md` — même script, juste le passthrough USB du lecteur
 et de la manette à activer côté hyperviseur.
 
+**Administrer la borne depuis un PC portable** (configuration, saisie des
+questions, import CSV, sauvegarde) : l'appli n'écoutant que sur la borne
+elle-même, passer par un tunnel SSH — `sudo apt install -y openssh-server`
+une fois sur la borne, puis depuis le PC :
+
+```bash
+ssh -N -L 5000:localhost:5000 utilisateur@<adresse-de-la-borne>
+```
+
+et ouvrir `http://localhost:5000/admin` sur le PC. Pas à pas (Windows,
+PuTTY, adresse de la borne, précautions) : `README.md` à la racine du
+dépôt, section « Administrer la borne depuis un autre PC (tunnel SSH) ».
+
 ## Refonte visuelle (v0.5)
 
 L'apparence du kiosque et de l'admin a été refaite à partir des maquettes

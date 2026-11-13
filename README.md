@@ -28,6 +28,109 @@ Depuis la v1.2 elle a, comme la démo, la page **Admin > Exportar /
 Importar** (export, import d'un export de la démo) et, depuis la v1.21,
 l'import de **fichiers CSV** (voir plus bas).
 
+## Administrer la borne depuis un autre PC (tunnel SSH)
+
+Plutôt que de configurer la borne et d'écrire les questions sur son propre
+écran (sans souris, avec un clavier de fortune), on peut ouvrir
+l'administration de la borne **dans le navigateur d'un PC portable**, avec
+un vrai clavier, le copier-coller et les fichiers du PC (CSV, photos, sons).
+
+Par sécurité, l'appli de la borne n'écoute que sur la borne elle-même
+(`127.0.0.1:5000`) : elle est invisible depuis le réseau. Un **tunnel SSH**
+fait passer la connexion par une session SSH chiffrée et protégée par mot
+de passe : pour le navigateur du PC, la borne apparaît alors comme
+`http://localhost:5000`.
+
+### 1. Préparer la borne (une seule fois)
+
+Sur la borne (`Ctrl+Alt+F2` pour une console si le kiosque occupe l'écran,
+`Ctrl+Alt+F1` pour revenir) :
+
+```bash
+sudo apt install -y openssh-server   # serveur SSH (pas installé par install.sh)
+hostname -I                          # adresse IP de la borne, ex. 192.168.1.42
+```
+
+Pour se connecter, utiliser le compte créé à l'installation de Debian (celui
+qui lance `sudo bash install.sh`). La borne et le PC doivent être sur le
+**même réseau** (même box, même wifi, ou un câble entre les deux).
+
+Astuce : `sudo apt install -y avahi-daemon` sur la borne permet ensuite
+d'utiliser son nom au lieu de son adresse IP, ex. `maleta.local` (nom
+donné à l'installation de Debian, affiché par `hostname`).
+
+### 2. Ouvrir le tunnel depuis le PC
+
+**Windows 10/11, Linux, macOS** — dans un terminal (sous Windows :
+PowerShell ou « Invite de commandes », le client SSH est déjà installé) :
+
+```bash
+ssh -N -L 5000:localhost:5000 utilisateur@192.168.1.42
+```
+
+- `utilisateur` : le compte Debian de la borne, `192.168.1.42` : son
+  adresse (ou `maleta.local`).
+- Taper le mot de passe de ce compte (rien ne s'affiche pendant la saisie,
+  c'est normal). À la première connexion, répondre `yes` pour accepter la
+  borne.
+- Ensuite la commande **ne rend pas la main : c'est normal**, le tunnel est
+  ouvert tant que cette fenêtre reste ouverte. `Ctrl+C` pour le fermer.
+- Si le port 5000 est déjà pris sur le PC (cas fréquent sur Mac, ou démo
+  lancée en développement) : `ssh -N -L 8080:localhost:5000 …` puis
+  utiliser `http://localhost:8080` dans la suite.
+
+**Avec PuTTY (Windows)** : *Session* → Host Name = adresse de la borne ;
+*Connection > SSH > Tunnels* → Source port `5000`, Destination
+`localhost:5000`, bouton **Add** ; revenir à *Session*, **Save** pour la
+réutiliser, puis **Open** et se connecter.
+
+### 3. Utiliser la borne depuis le PC
+
+Tunnel ouvert, dans le navigateur du PC :
+
+| Adresse | Pour |
+|---|---|
+| `http://localhost:5000/admin` | **Administration** (code PIN de la borne) : objets, questions, vilatges, diaporama, Configuration, Exportar / Importar |
+| `http://localhost:5000/` | **Voir l'écran de la borne** en direct (miroir) |
+
+- **Écrire les questions** : directement dans les formulaires de l'admin,
+  ou dans un tableur sur le PC puis *Exportar / Importar > Importar* (CSV,
+  voir plus bas). Les photos et les sons s'envoient depuis le PC dans la
+  fiche de chaque objet ou dans *Fotos & vidèos*.
+- **Sauvegarder** : *Exportar / Importar > Telecargar l'export*, le .zip est
+  enregistré sur le PC.
+- **Configurer** : modèle d'interface, textes, bannière, code PIN. Pour
+  réassigner un bouton de manette, cliquer « Réassigner » sur le PC puis
+  appuyer sur le bouton de la manette **branchée sur la borne**.
+- Après un changement d'apparence, de textes ou de touches, l'écran de la
+  borne doit être rechargé : `F5` sur un clavier branché à la borne, ou à
+  distance, dans une session SSH ordinaire (`ssh utilisateur@…`, sans
+  `-N`) : `sudo systemctl restart getty@tty1` (relance l'affichage du
+  kiosque, la borne revient sur l'accueil en quelques secondes).
+- Attention, le miroir (`/`) n'est pas qu'un affichage : les touches
+  tapées dans cette page pilotent **la vraie borne** (même partie, même
+  écran que les visiteurs).
+- L'admin se déconnecte seule après 20 min sans activité.
+
+### Sans tunnel (déconseillé)
+
+On peut aussi rendre l'appli joignable directement depuis le réseau
+(`http://192.168.1.42:5000/admin`, sans SSH) :
+
+```bash
+sudo systemctl edit maleta-occitana
+#   ajouter :
+#   [Service]
+#   Environment=MALETA_HOST=0.0.0.0
+sudo systemctl restart maleta-occitana
+```
+
+Le code PIN est alors la seule protection, et la connexion n'est pas
+chiffrée : à réserver à un réseau privé de confiance (jamais le wifi public
+d'un salon), et à retirer après usage (`sudo systemctl revert
+maleta-occitana` puis `sudo systemctl restart maleta-occitana`). Ce réglage
+survit aux mises à jour par `install.sh`.
+
 ## Version démo
 
 Télécharger depuis la page **Releases** du dépôt (pré-release
@@ -110,6 +213,8 @@ vilatges et les objets peuvent s'écrire **directement dans Excel ou
 LibreOffice, sans l'appli**, puis s'importer (démo ou borne, Admin >
 Exportar / Importar > Importar, un ou plusieurs .csv d'un coup). Seuls les
 images et les sons des objets s'ajoutent ensuite par l'appli.
+Sur la borne, le plus simple est de faire l'import depuis un PC, via le
+[tunnel SSH](#administrer-la-borne-depuis-un-autre-pc-tunnel-ssh).
 
 - Modèles (une ligne d'en-têtes par fichier + notice) :
   [`docs/modeles-csv/`](docs/modeles-csv/), ou le lien « modèles CSV » de la
