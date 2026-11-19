@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.33** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.34** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -406,6 +406,26 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.34** (19/11/2026) — centre de jòcs, retours de Fabien après la v1.33.
+  1. **Jeu qui ralentit toujours quelques secondes après le lancement** :
+     l'émulateur (RetroArch) cale par défaut sa vitesse sur la **sortie son**
+     (« audio sync ») : tant que le tampon du son se remplit, le jeu tourne à
+     60 images/s ; une fois plein, il ne va plus qu'au rythme où le navigateur
+     consomme le son — si la sortie son de la borne est un peu lente, le jeu
+     tombe à ~45 i/s, quelle que soit la console. La vitesse est désormais
+     **calée sur l'image** (60 Hz de l'écran). Case « Caler la vitesse des jeux
+     sur le son » dans Admin > Jòcs amagats pour revenir au réglage d'origine
+     si le son grésille. Le **Diagnostic** affiche maintenant aussi les images
+     par seconde du jeu et de l'écran, et l'état du son : « Jeu 45 i/s · écran
+     60 Hz » = c'est le son qui freine.
+  2. **Réglage de la manette allégé** : un **menu déroulant** choisit la
+     console, puis seuls ses boutons s'affichent (joueurs 1 et 2).
+  3. **Combinaison de boutons pour quitter un jeu** (retour au centre de
+     jòcs), réglée en haut de la même page : par défaut **Select + Start
+     maintenus 1 s** ; « changer » puis appuyer ensemble sur 2 à 4 boutons
+     de la manette branchée sur la borne ; durée au choix (immédiat, 1, 2,
+     3 s) ; ou aucune combinaison (Échap seulement). Rappelée dans l'aide
+     affichée au début de la partie.
 - **v1.33** (19/11/2026) — centre de jòcs, retours de Fabien après la v1.32.
   1. **Jeu qui ralentit (60 → 45 images/s, NES comme Mega Drive)** : cause
      trouvée. La page de jeu chargeait EmulatorJS en mode « debug » (seuls

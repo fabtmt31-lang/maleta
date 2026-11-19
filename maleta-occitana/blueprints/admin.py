@@ -1293,6 +1293,7 @@ def jocs():
         roms_total=sum(roms_count.values()),
         systems=rom_manager.SYSTEMS,
         diagnostic=rom_manager.get_diagnostic(),
+        audio_sync=rom_manager.get_audio_sync(),
         players_with_pad=[p for p in rom_manager.PLAYERS
                           if any(v["pad"] for v in controls["nes"][str(p)].values())],
     )
@@ -1436,20 +1437,64 @@ def jocs_diagnostic():
     return redirect(url_for("admin.jocs"))
 
 
+@admin_bp.route("/jocs/son", methods=["POST"])
+@login_required
+def jocs_audio_sync():
+    rom_manager.set_audio_sync(bool(request.form.get("audio_sync")))
+    return redirect(url_for("admin.jocs"))
+
+
 @admin_bp.route("/jocs/maneta")
 @login_required
 def jocs_controls():
+    """v1.34 : une console a la fois (menu deroulant) + combinaison de sortie."""
     if config.DEMO_MODE:
         return redirect(url_for("admin.jocs"))
+    system = request.args.get("console")
+    if system not in rom_manager.SYSTEMS:
+        system = next(iter(rom_manager.SYSTEMS))
     return render_template(
         "admin/jocs_maneta.html",
+        system=system,
         controls=rom_manager.get_controls(),
         buttons=rom_manager.BUTTONS,
         six_buttons=rom_manager.get_six_buttons(),
         six_names=rom_manager.SIX_BUTTONS,
         systems=rom_manager.SYSTEMS,
         players=rom_manager.PLAYERS,
+        quit_combo=rom_manager.get_quit_combo(),
+        quit_combo_label=rom_manager.quit_combo_label(),
+        quit_holds=rom_manager.QUIT_HOLDS,
     )
+
+
+@admin_bp.route("/jocs/maneta/sortida", methods=["POST"])
+@login_required
+def jocs_controls_quit():
+    """v1.34 : combinaison de sortie -- duree, suppression, ou capture sur la
+    borne (comme les boutons : la manette est branchee sur la borne)."""
+    data = request.get_json(silent=True) or request.form
+    capture = current_app.extensions["pad_capture"]
+    try:
+        if data.get("action") == "capture":
+            capture.arm_combo()
+            current_app.extensions["socketio"].emit("pad_capture", {"seconds": capture.TIMEOUT, "combo": True},
+                                                     namespace="/kiosk")
+            return jsonify({"ok": True, "seconds": capture.TIMEOUT})
+        if data.get("action") == "clear":
+            rom_manager.set_quit_combo(buttons=[])
+        elif data.get("action") == "default":
+            rom_manager.set_quit_combo(buttons=rom_manager.DEFAULT_QUIT_COMBO["buttons"],
+                                       hold=rom_manager.DEFAULT_QUIT_COMBO["hold"])
+        if data.get("hold") not in (None, ""):
+            rom_manager.set_quit_combo(hold=data.get("hold"))
+    except (ValueError, TypeError) as exc:
+        if request.is_json:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        flash(str(exc))
+    if request.is_json:
+        return jsonify({"ok": True})
+    return redirect(url_for("admin.jocs_controls", console=data.get("console")))
 
 
 @admin_bp.route("/jocs/maneta/assignar", methods=["POST"])
@@ -1499,14 +1544,14 @@ def jocs_controls_listen_cancel():
 def jocs_controls_reset():
     rom_manager.reset_controls()
     flash("Manette : valeurs par défaut rétablies")
-    return redirect(url_for("admin.jocs_controls"))
+    return redirect(url_for("admin.jocs_controls", console=request.form.get("console")))
 
 
 @admin_bp.route("/jocs/maneta/sieis", methods=["POST"])
 @login_required
 def jocs_controls_six():
     rom_manager.set_six_buttons(bool(request.form.get("six")))
-    return redirect(url_for("admin.jocs_controls"))
+    return redirect(url_for("admin.jocs_controls", console="md"))
 
 
 

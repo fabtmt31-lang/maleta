@@ -68,6 +68,9 @@ def play(rom_id):
         controls=rom_manager.emulatorjs_controls(rom["system"]),
         buttons=EMULATORJS_BUTTONS,
         diagnostic=rom_manager.get_diagnostic(),
+        retroarch_cfg=rom_manager.retroarch_extra_config(),
+        quit_combo=rom_manager.get_quit_combo(),
+        quit_combo_label=rom_manager.quit_combo_label(),
         **_page_context(),
     )
 

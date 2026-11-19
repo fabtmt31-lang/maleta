@@ -9,18 +9,50 @@
     <h1>Manèta de l'emulator</h1>
     <p class="muted" style="margin-top:4px">« Manette » : cliquer puis appuyer sur le bouton de la manette <strong>branchée sur la borne</strong>
       (l'écran de la borne doit être allumé, ou cette page ouverte sur la borne). « Touche » : cliquer puis appuyer sur une touche
-      du clavier. Échap est réservé à la sortie du jeu.</p></div>
+      du clavier. Échap est réservé à la sortie du jeu. Choisir la console dans le menu déroulant.</p></div>
 </div>
 <div class="flash hidden" id="capture-status"></div>
 
+<!-- v1.34 : une console a la fois (menu deroulant) et, au meme endroit, la
+     combinaison de boutons qui quitte un jeu. -->
+<div class="card elev" style="margin-bottom:20px">
+  <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+    <form method="get" action="{{ url_for('admin.jocs_controls') }}">
+      <label style="font-weight:700">Console<br>
+        <select class="input" name="console" onchange="this.form.submit()" style="min-width:200px;margin-top:4px">
+          {%- for key, sys in systems.items() %}<option value="{{ key }}" {{ 'selected' if key == system }}>{{ sys.label }}</option>{% endfor %}
+        </select></label>
+      <noscript><button type="submit" class="button btn-secondary">Afficher</button></noscript>
+    </form>
+    <div style="flex:1;min-width:280px">
+      <div style="font-weight:700">Quitter un jeu à la manette <span class="muted" style="font-weight:400">(toutes consoles)</span></div>
+      <div style="margin:6px 0">
+        {%- if quit_combo.buttons %}<span class="tag tag-accent">{{ quit_combo_label }}</span>
+        {%- else %}<span class="muted">aucune combinaison : Échap au clavier seulement</span>{% endif %}
+        · <a href="#" id="combo-capture">{{ 'changer' if quit_combo.buttons else 'Enregistrer une combinaison' }}</a>
+        {%- if quit_combo.buttons %} · <a href="#" class="link-danger" data-combo="clear">retirer</a>{% endif %}
+        {%- if quit_combo.buttons != ['SELECT', 'START'] %} · <a href="#" data-combo="default">Select + Start</a>{% endif %}
+      </div>
+      <form method="post" action="{{ url_for('admin.jocs_controls_quit') }}">
+        <input type="hidden" name="console" value="{{ system }}">
+        <label>Maintenir
+          <select class="input" name="hold" onchange="this.form.submit()" style="width:auto">
+            {%- for h in quit_holds %}<option value="{{ h }}" {{ 'selected' if quit_combo.hold == h }}>{{ 'immédiat' if h == 0 else h ~ ' s' }}</option>{% endfor %}
+          </select></label>
+        <span class="muted">— un petit temps évite de quitter par erreur (certains jeux utilisent Select + Start).</span>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="cards-grid">
+  {%- set sys = systems[system] %}
   {%- for player in players %}
-  {%- for system, sys in systems.items() %}
   <div class="card elev">
-    <div class="card-kicker">Joueur {{ player }}</div>
-    <div class="card-title">{{ sys.label }}</div>
+    <div class="card-kicker">{{ sys.label }}</div>
+    <div class="card-title">Joueur {{ player }}</div>
     <table class="admin-table">
-      <thead><tr><th>{{ sys.label }}</th><th>Manette</th><th>Clavier</th></tr></thead>
+      <thead><tr><th>Bouton</th><th>Manette</th><th>Clavier</th></tr></thead>
       <tbody>
       {%- for name, label, slot in buttons[system] %}
         {%- if not (system == 'md' and name in six_names and not six_buttons) %}
@@ -49,13 +81,13 @@
     {%- endif %}
   </div>
   {%- endfor %}
-  {%- endfor %}
   <div class="card elev">
     <div class="card-kicker">Essai</div><div class="card-title">Tester la manette</div>
     <p class="muted" style="margin:0">Fonctionne quand cette page est ouverte sur la borne : les boutons appuyés s'affichent ici.</p>
     <p id="pad-test" style="min-height:3em;font-weight:700">Aucune manette vue par ce navigateur.</p>
     <form method="post" action="{{ url_for('admin.jocs_controls_reset') }}"
-          onsubmit="return confirm('Remettre tous les réglages de la manette et du clavier par défaut ?')">
+          onsubmit="return confirm('Remettre tous les réglages de la manette et du clavier (toutes consoles) par défaut ?')">
+      <input type="hidden" name="console" value="{{ system }}">
       <button type="submit" class="button btn-secondary">Valeurs par défaut</button>
     </form>
   </div>
@@ -91,6 +123,29 @@
       if (st.last) location.reload();
       else show("Aucun bouton reçu. L'écran de la borne est-il allumé ? (ou ouvrir cette page sur la borne)");
     }, 500);
+  }));
+
+  // v1.34 : combinaison de sortie, capturee par la borne comme les boutons.
+  const comboUrl = "{{ url_for('admin.jocs_controls_quit') }}";
+  document.getElementById("combo-capture").addEventListener("click", async (event) => {
+    event.preventDefault();
+    const res = await post(comboUrl, { action: "capture" });
+    if (!res.ok) return show(res.error || "Erreur");
+    const ask = "Sur la manette branchée sur la borne : appuie sur les boutons voulus EN MÊME TEMPS (2 à 4), puis relâche…";
+    show(ask);
+    const timer = setInterval(async () => {
+      const st = await (await fetch("{{ url_for('admin.jocs_controls_listen_status') }}")).json();
+      if (st.waiting) return show(`${ask} (${st.left} s)`);
+      clearInterval(timer);
+      if (st.last && st.last.error) show(st.last.error + " — recommencer.");
+      else if (st.last) location.reload();
+      else show("Aucune combinaison reçue. L'écran de la borne est-il allumé ? (ou ouvrir cette page sur la borne)");
+    }, 500);
+  });
+  document.querySelectorAll("[data-combo]").forEach((a) => a.addEventListener("click", async (event) => {
+    event.preventDefault();
+    await post(comboUrl, { action: a.dataset.combo });
+    location.reload();
   }));
 
   document.querySelectorAll("[data-key]").forEach((a) => a.addEventListener("click", (event) => {

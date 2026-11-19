@@ -158,8 +158,10 @@ def externe_pad():
     reglage arme depuis l'admin (Jòcs amagats > Manèta). Sans reglage en
     cours, ignore."""
     data = request.get_json(silent=True) or {}
-    ok = current_app.extensions["pad_capture"].submit(data.get("label"))
-    return jsonify({"ok": ok})
+    capture = current_app.extensions["pad_capture"]
+    if "labels" in data:  # v1.34 : combinaison de sortie
+        return jsonify({"ok": capture.submit_combo(data.get("labels"))})
+    return jsonify({"ok": capture.submit(data.get("label"))})
 
 
 @kiosk_bp.route("/externe/retour")

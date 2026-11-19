@@ -259,3 +259,15 @@ Maquette : `admin-2-wifi.png`.
   noms « No-Intro », version France > Europe > Monde > USA), à l'ajout d'un jeu
   ou par bouton ; image jointe du même nom que le jeu ; ajout manuel.
   Code : `managers/cover_lookup.py`.
+
+## 14. Évolutions v1.34
+
+- **Vitesse calée sur l'image** : `audio_sync = false` ajouté au
+  `retroarch.cfg` écrit par EmulatorJS (`jocsRetroarchConfig`, static/js/jocs.js).
+  Calé sur le son (réglage d'origine), le jeu suivait le rythme de la sortie son
+  du navigateur une fois le tampon plein : 60 → ~45 i/s après quelques secondes
+  sur la borne. Réglage réversible dans l'admin ; diagnostic enrichi (i/s du
+  jeu, Hz de l'écran, son).
+- **Manèta** : menu déroulant de la console ; combinaison de sortie à la manette
+  (2 à 4 boutons, maintenue 0 à 3 s, défaut Select + Start 1 s), capturée par
+  la borne comme les boutons.

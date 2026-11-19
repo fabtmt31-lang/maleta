@@ -7,7 +7,8 @@
 {% block body_class %}jocs-joc{% endblock %}
 {% block body %}
 <div id="game"></div>
-<div class="jocs-exit-hint" id="jocs-exit-hint">{{ m.key('Échap') }}<span>tornar al centre de jòcs</span></div>
+<div class="jocs-exit-hint" id="jocs-exit-hint">{{ m.key('Échap') }}
+  {%- if quit_combo.buttons %}<span>o</span>{{ m.key(quit_combo_label) }}{% endif %}<span>tornar al centre de jòcs</span></div>
 {%- if diagnostic %}
 <!-- v1.31 : diagnostic (Admin > Jòcs amagats) -- carte graphique vue par le
      navigateur ; les images par seconde sont affichees par EmulatorJS. -->
@@ -26,7 +27,9 @@
       return realFetch.call(this, input, init);
     };
   })();
-  jocsPartida();
+  jocsPartida({{ quit_combo | tojson }});
+  // v1.34 : vitesse calee sur l'image et non sur le son (Admin > Jòcs amagats)
+  jocsRetroarchConfig({{ retroarch_cfg | tojson }});
   window.EJS_player = "#game";
   window.EJS_core = {{ core | tojson }};
   window.EJS_gameUrl = {{ rom_url | tojson }};
@@ -46,7 +49,7 @@
   window.EJS_defaultControls = {{ controls | tojson }};
   {%- if diagnostic %}
   window.EJS_defaultOptions = { fps: "show" };
-  jocsDiagnostic();
+  jocsDiagnostic({{ 'true' if 'audio_sync = true' in retroarch_cfg else 'false' }});
   {%- endif %}
 </script>
 <script src="{{ url_for('static', filename='vendor/emulatorjs/data/loader.js') }}"></script>

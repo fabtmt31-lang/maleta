@@ -45,7 +45,9 @@ Absents du menu des visiteurs, ils se lancent uniquement depuis
   le centre de jòcs ». **Échap** pour sortir. Les **jaquettes** sont
   cherchées automatiquement sur Internet (base libre de libretro, borne
   connectée au Wi-Fi) ; on peut aussi joindre une image du même nom que le
-  jeu (`Sonic.md` + `Sonic.png`) ou en ajouter une à la main.
+  jeu (`Sonic.md` + `Sonic.png`) ou en ajouter une à la main. Pour quitter
+  un jeu : **Échap**, ou à la manette **Select + Start maintenus 1 s**
+  (combinaison réglable dans *Manèta*).
 - **Wi-Fi** (borne) : *Admin > Jòcs amagats > Réglages Wi-Fi*, pour qu'aprene
   soit joignable. Le reste de la borne fonctionne toujours sans réseau.
 

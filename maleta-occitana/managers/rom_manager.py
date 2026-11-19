@@ -314,6 +314,82 @@ def set_diagnostic(enabled):
     settings_manager._set(KEY_DIAGNOSTIC, "1" if enabled else "0")
 
 
+KEY_AUDIO_SYNC = "jocs_audio_sync"
+
+
+def get_audio_sync():
+    """v1.34 : vitesse du jeu calee sur la sortie son (reglage d'origine de
+    RetroArch) ou sur l'image (par defaut). Calee sur le son, le jeu ralentit
+    des que le tampon audio est plein si la sortie son du navigateur consomme
+    un peu moins vite que prevu : 60 images/s au lancement, puis ~45 quelques
+    secondes plus tard (constate sur la borne, NES comme Mega Drive)."""
+    return settings_manager._get(KEY_AUDIO_SYNC, "0") == "1"
+
+
+def set_audio_sync(enabled):
+    settings_manager._set(KEY_AUDIO_SYNC, "1" if enabled else "0")
+
+
+def retroarch_extra_config():
+    """Lignes ajoutees au retroarch.cfg ecrit par EmulatorJS."""
+    return "audio_sync = %s\n" % ("true" if get_audio_sync() else "false")
+
+
+# v1.34 : combinaison de boutons de manette pour quitter un jeu (retour au
+# centre de jòcs), en plus d'Echap au clavier. Noms des boutons au format
+# d'EmulatorJS (SELECT, START, BUTTON_1...), toutes manettes confondues.
+KEY_QUIT_COMBO = "jocs_quit_combo"
+DEFAULT_QUIT_COMBO = {"buttons": ["SELECT", "START"], "hold": 1.0}
+QUIT_HOLDS = (0, 1, 2, 3)
+PAD_BUTTON_LABELS = {
+    "BUTTON_1": "A / Croix (1)", "BUTTON_2": "B / Rond (2)", "BUTTON_3": "X / Carré (3)",
+    "BUTTON_4": "Y / Triangle (4)", "LEFT_TOP_SHOULDER": "L", "RIGHT_TOP_SHOULDER": "R",
+    "LEFT_BOTTOM_SHOULDER": "L2", "RIGHT_BOTTOM_SHOULDER": "R2", "SELECT": "Select", "START": "Start",
+    "LEFT_STICK": "L3", "RIGHT_STICK": "R3", "DPAD_UP": "Haut", "DPAD_DOWN": "Bas",
+    "DPAD_LEFT": "Gauche", "DPAD_RIGHT": "Droite",
+}
+_COMBO_RE = r"[A-Z0-9_]{2,30}"
+
+
+def get_quit_combo():
+    try:
+        value = json.loads(settings_manager._get(KEY_QUIT_COMBO, None) or "null")
+    except ValueError:
+        value = None
+    if not isinstance(value, dict):
+        return dict(DEFAULT_QUIT_COMBO)
+    import re
+    buttons = [b for b in value.get("buttons") or [] if isinstance(b, str) and re.fullmatch(_COMBO_RE, b)]
+    try:
+        hold = float(value.get("hold", DEFAULT_QUIT_COMBO["hold"]))
+    except (TypeError, ValueError):
+        hold = DEFAULT_QUIT_COMBO["hold"]
+    return {"buttons": buttons[:4], "hold": hold if hold in QUIT_HOLDS else DEFAULT_QUIT_COMBO["hold"]}
+
+
+def set_quit_combo(buttons=None, hold=None):
+    """buttons : liste de 2 a 4 boutons, [] = pas de combinaison (Echap
+    seulement) ; hold : secondes a maintenir (0 = immediat)."""
+    import re
+    combo = get_quit_combo()
+    if buttons is not None:
+        buttons = list(dict.fromkeys(buttons))
+        if buttons and not (2 <= len(buttons) <= 4 and all(isinstance(b, str) and re.fullmatch(_COMBO_RE, b) for b in buttons)):
+            raise ValueError("Combinaison : 2 à 4 boutons appuyés ensemble")
+        combo["buttons"] = buttons
+    if hold is not None:
+        hold = float(hold)
+        if hold not in QUIT_HOLDS:
+            raise ValueError("Durée inconnue")
+        combo["hold"] = hold
+    settings_manager._set(KEY_QUIT_COMBO, json.dumps(combo))
+
+
+def quit_combo_label(combo=None):
+    combo = combo or get_quit_combo()
+    return " + ".join(PAD_BUTTON_LABELS.get(b, b) for b in combo["buttons"])
+
+
 KEY_COVERS_AUTO = "jocs_covers_auto"
 
 
@@ -377,6 +453,39 @@ class PadCapture:
                              "until": time.monotonic() + self.TIMEOUT}
             self._last = None
 
+    def arm_combo(self):
+        """v1.34 : capture de la combinaison de sortie (plusieurs boutons
+        appuyes ensemble, envoyes au relachement)."""
+        import time
+        with self._lock:
+            self._pending = {"combo": True, "until": time.monotonic() + self.TIMEOUT}
+            self._last = None
+
+    def armed_kind(self):
+        with self._lock:
+            return "combo" if self._pending and self._pending.get("combo") else "button"
+
+    def submit_combo(self, labels):
+        import time
+        if not isinstance(labels, list):
+            return False
+        with self._lock:
+            pending = self._pending
+            if pending is None or not pending.get("combo") or time.monotonic() > pending["until"]:
+                return False
+        try:
+            with self.app.app_context():
+                set_quit_combo(buttons=labels)
+        except ValueError as exc:
+            with self._lock:
+                self._pending = None
+                self._last = {"combo": True, "error": str(exc)}
+            return False
+        with self._lock:
+            self._pending = None
+            self._last = {"combo": True, "labels": labels}
+        return True
+
     def submit(self, label):
         """Bouton recu du navigateur de la borne. Renvoie True s'il a ete
         enregistre (une capture etait armee)."""
@@ -386,8 +495,9 @@ class PadCapture:
             return False
         with self._lock:
             pending = self._pending
-            if pending is None or time.monotonic() > pending["until"]:
-                self._pending = None
+            if pending is None or pending.get("combo") or time.monotonic() > pending["until"]:
+                if pending is not None and not pending.get("combo"):
+                    self._pending = None
                 return False
             self._pending = None
         with self.app.app_context():

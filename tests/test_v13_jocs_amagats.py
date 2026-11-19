@@ -330,9 +330,9 @@ def test_diagnostic_option(tmp_path):
     client.post("/admin/jocs/diagnostic", data={"diagnostic": "1"})
     hg.start_jocs(app)
     page = client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
-    assert 'EJS_defaultOptions = { fps: "show" }' in page and "jocsDiagnostic()" in page
+    assert 'EJS_defaultOptions = { fps: "show" }' in page and "jocsDiagnostic(false)" in page
     client.post("/admin/jocs/diagnostic", data={})
-    assert "jocsDiagnostic()" not in client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
+    assert "jocsDiagnostic(" not in client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
     app.extensions["game_controller"].stop_external()
 
 
@@ -379,8 +379,9 @@ def test_snes_and_atari_2600(tmp_path):
     snes = roms["Super Mario World"]["id"]
     assert 'EJS_core = "snes9x"' in client.get(f"/jocs/joc/{snes}").get_data(as_text=True)
     app.extensions["game_controller"].stop_external()
-    page = client.get("/admin/jocs/maneta").get_data(as_text=True)
-    assert "Super NES" in page and "Atari 2600" in page and "Reset" in page
+    page = client.get("/admin/jocs/maneta?console=a26").get_data(as_text=True)
+    assert "Super NES" in page and "Atari 2600" in page and "Reset" in page and "Tir (Fire)" in page
+    assert "Select</strong>" in page and "Mode</strong>" not in page  # une seule console affichee
 
 
 def test_cover_matching():
@@ -439,3 +440,50 @@ def test_cover_search_and_companion_images(tmp_path):
     search.wait(5)
     assert "Internet" in search.status()["error"]
     assert "Internet" in client.get("/admin/jocs/bibliotheca").get_data(as_text=True)
+
+
+# --- v1.34 : vitesse calee sur l'image, console au choix, combinaison de sortie ---
+
+def test_audio_sync_setting(tmp_path):
+    app, client, rom_id, rom_manager = _with_rom(tmp_path)
+    _mods()[1].start_jocs(app)
+    play = client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
+    assert 'jocsRetroarchConfig("audio_sync = false\\n")' in play
+    client.post("/admin/jocs/son", data={"audio_sync": "1"})
+    play = client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
+    assert 'jocsRetroarchConfig("audio_sync = true\\n")' in play
+    assert "Caler la vitesse des jeux sur le son" in client.get("/admin/jocs").get_data(as_text=True)
+    app.extensions["game_controller"].stop_external()
+
+
+def test_quit_combo(tmp_path):
+    app, client, rom_id, rom_manager = _with_rom(tmp_path)
+    with app.app_context():
+        assert rom_manager.get_quit_combo() == {"buttons": ["SELECT", "START"], "hold": 1.0}
+    page = client.get("/admin/jocs/maneta").get_data(as_text=True)
+    assert "Quitter un jeu à la manette" in page and "Select + Start" in page and 'name="console"' in page
+    _mods()[1].start_jocs(app)
+    play = client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
+    assert 'jocsPartida({"buttons": ["SELECT", "START"], "hold": 1.0})' in play and "Select + Start" in play
+
+    # Capture sur la borne : un seul bouton refuse, puis L + R + Start
+    capture = app.extensions["pad_capture"]
+    assert client.post("/admin/jocs/maneta/sortida", json={"action": "capture"}).get_json()["ok"]
+    assert client.post("/externe/manette", json={"label": "BUTTON_1"}).get_json() == {"ok": False}  # mode combinaison
+    assert client.post("/externe/manette", json={"labels": ["START"]}).get_json() == {"ok": False}
+    assert "2 à 4 boutons" in capture.status()["last"]["error"]
+    client.post("/admin/jocs/maneta/sortida", json={"action": "capture"})
+    assert client.post("/externe/manette", json={"labels": ["LEFT_TOP_SHOULDER", "RIGHT_TOP_SHOULDER", "START"]}).get_json() == {"ok": True}
+    assert client.post("/externe/manette", json={"labels": ["SELECT", "START"]}).get_json() == {"ok": False}  # plus armee
+    client.post("/admin/jocs/maneta/sortida", data={"hold": "2", "console": "snes"})
+    with app.app_context():
+        assert rom_manager.get_quit_combo() == {"buttons": ["LEFT_TOP_SHOULDER", "RIGHT_TOP_SHOULDER", "START"], "hold": 2.0}
+        assert rom_manager.quit_combo_label() == "L + R + Start"
+    assert client.post("/admin/jocs/maneta/sortida", json={"labels": ["<x>", "START"]}).status_code == 200  # ignore
+    client.post("/admin/jocs/maneta/sortida", json={"action": "clear"})
+    play = client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
+    assert '"buttons": []' in play
+    client.post("/admin/jocs/maneta/sortida", json={"action": "default"})
+    with app.app_context():
+        assert rom_manager.get_quit_combo()["buttons"] == ["SELECT", "START"]
+    app.extensions["game_controller"].stop_external()
