@@ -1,0 +1,133 @@
+{% extends "admin/base.html" %}
+{% block title %}Manèta de l'emulator{% endblock %}
+{% block content %}
+<!-- v1.3 : reglage de la manette du centre de jòcs (managers/rom_manager.py,
+     BUTTONS / get_controls). Bouton de manette : capture par le navigateur de
+     la borne (static/js/pad-capture.js) ; touche : capturee dans cette page. -->
+<div class="page-header">
+  <div><div class="page-eyebrow"><a href="{{ url_for('admin.jocs') }}">Jòcs amagats</a> · Centre de jòcs</div>
+    <h1>Manèta de l'emulator</h1>
+    <p class="muted" style="margin-top:4px">« Manette » : cliquer puis appuyer sur le bouton de la manette <strong>branchée sur la borne</strong>
+      (l'écran de la borne doit être allumé, ou cette page ouverte sur la borne). « Touche » : cliquer puis appuyer sur une touche
+      du clavier. Échap est réservé à la sortie du jeu.</p></div>
+</div>
+<div class="flash hidden" id="capture-status"></div>
+
+<div class="cards-grid">
+  {%- for player in players %}
+  {%- for system, sys in systems.items() %}
+  <div class="card elev">
+    <div class="card-kicker">Joueur {{ player }}</div>
+    <div class="card-title">{{ sys.label }}</div>
+    <table class="admin-table">
+      <thead><tr><th>{{ sys.label }}</th><th>Manette</th><th>Clavier</th></tr></thead>
+      <tbody>
+      {%- for name, label, slot in buttons[system] %}
+        {%- if not (system == 'md' and name in six_names and not six_buttons) %}
+        {%- set value = controls[system][player|string][name] %}
+        <tr>
+          <td><strong>{{ label }}</strong></td>
+          <td>
+            {%- if value.pad %}<span class="tag tag-accent">{{ value.pad }}</span>{% endif %}
+            <a href="#" data-pad="{{ system }}|{{ player }}|{{ name }}">{{ 'changer' if value.pad else 'Assignar' }}</a>
+          </td>
+          <td>
+            {%- if value.key %}<span class="tag tag-outline">{{ value.key }}</span>{% endif %}
+            <a href="#" data-key="{{ system }}|{{ player }}|{{ name }}">{{ 'changer' if value.key else 'Touche' }}</a>
+            {%- if value.key %} · <a href="#" class="link-danger" data-clear="{{ system }}|{{ player }}|{{ name }}">retirer</a>{% endif %}
+          </td>
+        </tr>
+        {%- endif %}
+      {%- endfor %}
+      </tbody>
+    </table>
+    {%- if system == 'md' and player == 1 %}
+    <form method="post" action="{{ url_for('admin.jocs_controls_six') }}" style="margin-top:8px">
+      <label class="checkbox-label"><input type="checkbox" name="six" value="1" {{ 'checked' if six_buttons }}
+        onchange="this.form.submit()"> Manette Mega Drive 6 boutons (X, Y, Z, Mode)</label>
+    </form>
+    {%- endif %}
+  </div>
+  {%- endfor %}
+  {%- endfor %}
+  <div class="card elev">
+    <div class="card-kicker">Essai</div><div class="card-title">Tester la manette</div>
+    <p class="muted" style="margin:0">Fonctionne quand cette page est ouverte sur la borne : les boutons appuyés s'affichent ici.</p>
+    <p id="pad-test" style="min-height:3em;font-weight:700">Aucune manette vue par ce navigateur.</p>
+    <form method="post" action="{{ url_for('admin.jocs_controls_reset') }}"
+          onsubmit="return confirm('Remettre tous les réglages de la manette et du clavier par défaut ?')">
+      <button type="submit" class="button btn-secondary">Valeurs par défaut</button>
+    </form>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pad-capture.js') }}"></script>
+<script>
+(function () {
+  // Noms des touches tels qu'EmulatorJS les attend (son tableau keyMap).
+  const KEYS = {8: "backspace", 9: "tab", 13: "enter", 16: "shift", 17: "ctrl", 18: "alt", 32: "space",
+    33: "page up", 34: "page down", 35: "end", 36: "home", 37: "left arrow", 38: "up arrow",
+    39: "right arrow", 40: "down arrow", 45: "insert", 46: "delete"};
+  for (let c = 48; c <= 57; c++) KEYS[c] = String.fromCharCode(c);
+  for (let c = 65; c <= 90; c++) KEYS[c] = String.fromCharCode(c + 32);
+  for (let c = 96; c <= 105; c++) KEYS[c] = "numpad " + (c - 96);
+  for (let c = 112; c <= 123; c++) KEYS[c] = "f" + (c - 111);
+  const status = document.getElementById("capture-status");
+  const show = (text) => { status.textContent = text; status.classList.toggle("hidden", !text); };
+  const parse = (v) => { const [system, player, button] = v.split("|"); return { system, player, button }; };
+  const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}) }).then((r) => r.json());
+
+  document.querySelectorAll("[data-pad]").forEach((a) => a.addEventListener("click", async (event) => {
+    event.preventDefault();
+    const res = await post("{{ url_for('admin.jocs_controls_listen') }}", parse(a.dataset.pad));
+    if (!res.ok) return show(res.error || "Erreur");
+    show("Appuie sur le bouton voulu de la manette branchée sur la borne…");
+    const timer = setInterval(async () => {
+      const st = await (await fetch("{{ url_for('admin.jocs_controls_listen_status') }}")).json();
+      if (st.waiting) return show(`Appuie sur le bouton voulu de la manette branchée sur la borne… (${st.left} s)`);
+      clearInterval(timer);
+      if (st.last) location.reload();
+      else show("Aucun bouton reçu. L'écran de la borne est-il allumé ? (ou ouvrir cette page sur la borne)");
+    }, 500);
+  }));
+
+  document.querySelectorAll("[data-key]").forEach((a) => a.addEventListener("click", (event) => {
+    event.preventDefault();
+    show("Appuie sur une touche du clavier… (Échap pour annuler)");
+    const onKey = async (e) => {
+      e.preventDefault();
+      window.removeEventListener("keydown", onKey, true);
+      if (e.key === "Escape") return show("");
+      const name = KEYS[e.keyCode];
+      if (!name) return show("Touche non prise en charge, en choisir une autre.");
+      const res = await post("{{ url_for('admin.jocs_controls_assign') }}", Object.assign(parse(a.dataset.key), { kind: "key", value: name }));
+      if (!res.ok) return show(res.error || "Erreur");
+      location.reload();
+    };
+    window.addEventListener("keydown", onKey, true);
+  }));
+
+  document.querySelectorAll("[data-clear]").forEach((a) => a.addEventListener("click", async (event) => {
+    event.preventDefault();
+    await post("{{ url_for('admin.jocs_controls_assign') }}", Object.assign(parse(a.dataset.clear), { kind: "key", value: "" }));
+    location.reload();
+  }));
+
+  // Zone de test : boutons appuyes sur les manettes vues par ce navigateur.
+  const test = document.getElementById("pad-test");
+  (function loop() {
+    const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+    if (pads.length) {
+      test.textContent = pads.map((pad, i) => {
+        const pressed = pad.buttons.map((b, n) => (b.pressed ? "bouton " + (n + 1) : null)).filter(Boolean);
+        const axes = pad.axes.map((v, n) => (Math.abs(v) > 0.6 ? "axe " + n + (v > 0 ? "+" : "−") : null)).filter(Boolean);
+        return `Manette ${i + 1} : ` + (pressed.concat(axes).join(", ") || "rien");
+      }).join(" · ");
+    }
+    requestAnimationFrame(loop);
+  })();
+})();
+</script>
+{% endblock %}

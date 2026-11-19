@@ -155,12 +155,18 @@ def create_app():
     app.extensions["input_bus"] = input_bus
     app.extensions["game_controller"] = game_controller
     app.extensions["admin_state"] = admin_state
+    # v1.3 : reglage de la manette du centre de jòcs (voir rom_manager.PadCapture)
+    from managers.rom_manager import PadCapture
+    app.extensions["pad_capture"] = PadCapture(app)
 
     from blueprints.kiosk import kiosk_bp
     from blueprints.admin import admin_bp
 
     app.register_blueprint(kiosk_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
+    # v1.3 : centre de jòcs (jeu cache, voir blueprints/jocs.py)
+    from blueprints.jocs import jocs_bp
+    app.register_blueprint(jocs_bp, url_prefix="/jocs")
 
     @app.route("/media/objects/images/<path:filename>")
     def media_object_image(filename):

@@ -21,7 +21,7 @@ import os
 # navigateur en cache, mauvais dossier déployé...). A METTRE A JOUR à chaque
 # nouvelle archive livrée, en même temps que le numéro de version en tête du
 # README.md -- les deux doivent toujours rester synchronisés.
-APP_VERSION = "1.22"
+APP_VERSION = "1.3"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -63,6 +63,9 @@ ALLOWED_MEDIA_VIDEO_EXTENSIONS = {"mp4", "webm", "mov"}
 # des objets/de la bibliotheque : un seul logo et une seule image de croix a
 # la fois (voir managers/settings_manager.py, cles "logo_filename"/"crotz_filename").
 BRANDING_DIR = os.path.join(MEDIA_ROOT, "branding")
+# v1.3 : jeux du centre de jòcs (ajoutes par l'ecole) et leurs jaquettes.
+ROMS_DIR = os.path.join(MEDIA_ROOT, "roms")
+ROM_COVERS_DIR = os.path.join(ROMS_DIR, "covers")
 ALLOWED_BRANDING_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg"}
 # Duree d'affichage par defaut d'une photo dans le diaporama (secondes) si
 # aucune duree specifique n'est renseignee dans l'admin. Les videos jouent
@@ -265,3 +268,10 @@ QUIZ_ROUND_QUESTION_COUNT = int(os.environ.get("MALETA_QUIZ_QUESTIONS", "6"))
 QUIZ_SECONDS_PER_QUESTION = int(os.environ.get("MALETA_QUIZ_SECONDS", "15"))
 QUIZ_FEEDBACK_SECONDS = 3.0
 QUIZ_FIN_DISPLAY_SECONDS = 14
+
+# v1.3 : jeux caches (Admin > Jòcs amagats, voir managers/hidden_games.py).
+# Port de pilotage du navigateur de la borne (Chromium lance par .xinitrc
+# avec --remote-debugging-port, voir install.sh) et adresse de l'ecran de la
+# borne, ou le navigateur revient apres aprene.
+BROWSER_DEBUG_PORT = int(os.environ.get("MALETA_BROWSER_DEBUG_PORT", "9222"))
+KIOSK_URL = os.environ.get("MALETA_KIOSK_URL", "http://127.0.0.1:5000/")

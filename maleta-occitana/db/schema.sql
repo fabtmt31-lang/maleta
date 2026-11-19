@@ -140,3 +140,18 @@ CREATE TABLE IF NOT EXISTS quiz_questions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_quiz_questions_sort_order ON quiz_questions(sort_order);
+
+-- v1.3 : centre de jòcs (jeux caches, Admin > Jòcs amagats) -- bibliotheque
+-- des jeux NES / Mega Drive. Les fichiers (ROM) sont dans media/roms/ et sont
+-- AJOUTES PAR L'ECOLE : jamais livres avec la Maleta, jamais exportes.
+CREATE TABLE IF NOT EXISTS roms (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    title           TEXT NOT NULL,
+    system          TEXT NOT NULL,              -- 'nes' ou 'md' (Mega Drive)
+    filename        TEXT NOT NULL,              -- nom de fichier dans media/roms/
+    cover_filename  TEXT,                       -- jaquette facultative, media/roms/covers/
+    players         TEXT,                       -- texte libre affiche (ex. "1-2")
+    active          INTEGER NOT NULL DEFAULT 1,
+    sort_order      INTEGER NOT NULL DEFAULT 0,
+    created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

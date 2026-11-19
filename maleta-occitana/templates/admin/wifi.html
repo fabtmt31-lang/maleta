@@ -1,0 +1,94 @@
+{% extends "admin/base.html" %}
+{% block title %}Wi-Fi{% endblock %}
+{% block content %}
+<!-- v1.3 : Wi-Fi de la borne (managers/wifi_manager.py, NetworkManager). -->
+<div class="page-header">
+  <div><div class="page-eyebrow">Sistèma · <a href="{{ url_for('admin.jocs') }}">Jòcs amagats</a></div><h1>Wi-Fi</h1>
+  <p class="muted" style="margin-top:4px">Nécessaire seulement pour aprene : tout le reste de la borne fonctionne sans réseau.</p></div>
+</div>
+
+{%- if not status.available %}
+<div class="card elev"><div class="card-kicker">Estat</div><div class="card-title">Wi-Fi indisponible</div>
+  <p style="margin:0">{{ status.message }}</p></div>
+{%- else %}
+<div class="cards-grid">
+  <div class="card elev">
+    <div class="card-kicker">Estat</div>
+    <div class="card-title">{{ 'Connectat' if status.connected else 'Pas connectat' }}</div>
+    <table class="admin-table">
+      <tr><td>Réseau</td><td><strong>{{ status.network or '—' }}</strong></td></tr>
+      <tr><td>Adresse IP</td><td>{{ status.ip or '—' }}</td></tr>
+      <tr><td>Carte</td><td class="muted">{{ status.device }}</td></tr>
+    </table>
+    <div class="form-actions" style="flex-wrap:wrap">
+      <form method="post" action="{{ url_for('admin.wifi_test') }}"><button type="submit" class="button btn-secondary">Tester internet et aprene</button></form>
+      {%- if status.connected %}
+      <form method="post" action="{{ url_for('admin.wifi_disconnect') }}"><button type="submit" class="button btn-secondary">Se déconnecter</button></form>
+      {%- endif %}
+    </div>
+  </div>
+
+  <div class="card elev card-span-2">
+    <div class="card-kicker">Rets disponibles</div>
+    <div class="card-title">Se connecter à un réseau</div>
+    {%- if scan_error %}<p class="muted" style="margin:0">{{ scan_error }}</p>{% endif %}
+    <table class="admin-table">
+      <thead><tr><th>Réseau</th><th>Sécurité</th><th></th></tr></thead>
+      <tbody>
+      {%- for net in networks %}
+        <tr {% if net.ssid == selected %}style="background:var(--highlight)"{% endif %}>
+          <td>
+            <span style="display:inline-flex;gap:2px;align-items:flex-end;height:14px;margin-right:8px">
+              {%- for i in range(1, 5) %}<span style="width:4px;height:{{ i * 3 + 2 }}px;border-radius:1px;background:{{ 'var(--ink)' if i <= bars(net.signal) else 'var(--line)' }}"></span>{% endfor -%}
+            </span><strong>{{ net.ssid }}</strong>
+            {%- if net.in_use %} <span class="pill pill-ok">connecté</span>{% endif %}
+            {%- if net.ssid == selected and not net.in_use %}
+            <form method="post" action="{{ url_for('admin.wifi_connect') }}" style="display:flex;gap:12px;align-items:center;padding-top:10px;flex-wrap:wrap">
+              <input type="hidden" name="ssid" value="{{ net.ssid }}">
+              {%- if net.security != 'ouvert' and not net.saved %}
+              <span>Mot de passe</span>
+              <input class="input" type="password" name="password" autocomplete="off" autofocus required
+                     style="flex:1;min-width:200px;max-width:360px;padding:9px 12px;border:2px solid var(--ink);border-radius:10px;font:inherit">
+              {%- endif %}
+              <button type="submit" class="button">Se connecter</button>
+              <a href="{{ url_for('admin.wifi') }}">annuler</a>
+            </form>
+            {%- endif %}
+          </td>
+          <td>{{ net.security }}</td>
+          <td class="row-actions">
+            {%- if not net.in_use and net.ssid != selected %}<a href="{{ url_for('admin.wifi', reseau=net.ssid) }}">Choisir</a>{% endif %}
+            {%- if net.saved %}
+            <form method="post" action="{{ url_for('admin.wifi_forget') }}" style="display:inline"
+                  onsubmit="return confirm('Oublier ce réseau (et son mot de passe) ?')">
+              <input type="hidden" name="ssid" value="{{ net.ssid }}">
+              <button type="submit" class="link-danger" style="background:none;border:0;cursor:pointer">Oublier</button>
+            </form>
+            {%- endif %}
+          </td>
+        </tr>
+      {%- else %}
+        <tr><td colspan="3" class="muted">Aucun réseau visible.</td></tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+    <div class="form-actions" style="flex-wrap:wrap">
+      <form method="get" action="{{ url_for('admin.wifi') }}">
+        <input type="hidden" name="actualiser" value="1">
+        <button type="submit" class="button btn-secondary">↻ Actualiser la liste</button>
+      </form>
+    </div>
+    <details>
+      <summary class="muted" style="cursor:pointer">Réseau caché ?</summary>
+      <form method="post" action="{{ url_for('admin.wifi_connect') }}" class="object-form" style="background:none;padding:10px 0 0;max-width:520px">
+        <input type="hidden" name="hidden" value="1">
+        <label>Nom du réseau <input type="text" name="ssid" required></label>
+        <label>Mot de passe <input type="password" name="password" autocomplete="off"></label>
+        <div class="form-actions"><button type="submit" class="button">Se connecter</button></div>
+      </form>
+    </details>
+    <p class="muted" style="margin:0">Les mots de passe Wi-Fi sont gardés par le système de la borne : jamais dans la base de la Maleta, jamais exportés.</p>
+  </div>
+</div>
+{%- endif %}
+{% endblock %}

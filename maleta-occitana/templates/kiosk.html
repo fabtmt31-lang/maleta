@@ -498,6 +498,29 @@
     {{ fin_screen('quiz', 'Fin del Quiz !', 'Quiz Calandreta') }}
   </section>
 
+  <!-- ============ v1.3 : jeu cache en cours (aprene) ============
+       Verifications puis connexion, avant que le navigateur de la borne
+       parte sur aprene (voir managers/hidden_games.py). Le centre de jòcs a
+       sa propre page (/jocs/). -->
+  <section id="screen-externe" class="screen hidden">
+    <div class="stage menu">
+      {%- if template == 'senhal' %}
+      <div class="deco deco-menu-cross">{{ m.cross('#B3141C', sw=4.4) }}</div>
+      {%- elif template == 'mercat' %}
+      <div class="deco scallop"></div>
+      {%- endif %}
+      <header class="topbar">{{ m.brand(texts, branding, template) }}</header>
+      <div class="menu-heading"><h1 class="menu-title" id="externe-title">Competicion aprene</h1></div>
+      <ul class="externe-steps" id="externe-steps"></ul>
+      <p class="externe-error hidden" id="externe-error"></p>
+      <footer class="menu-foot">
+        <div class="hints" style="margin-left:auto">
+          <span class="hint">{{ m.key('Échap') }}<span id="externe-hint">anullar</span></span>
+        </div>
+      </footer>
+    </div>
+  </section>
+
   <!-- 14/09/2026 : socket.io servi EN LOCAL (static/js/socket.io.min.js) --
        la borne doit fonctionner sans acces web. -->
   <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
@@ -509,6 +532,8 @@
     window.MALETA_TEMPLATE = {{ template | tojson }};
   </script>
   <script src="{{ url_for('static', filename='js/kiosk.js') }}"></script>
+  <!-- v1.3 : reglage de la manette du centre de jòcs depuis l'admin -->
+  <script src="{{ url_for('static', filename='js/pad-capture.js') }}"></script>
   {%- if demo_mode %}
   <!-- v1.2 : version de demo (aucun lecteur NFC) -- panneau pour "poser"
        un objet a la souris (ou touche F2), voir static/js/kiosk-demo.js. -->

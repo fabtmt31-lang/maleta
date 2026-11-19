@@ -1,7 +1,7 @@
 """Ecran du kiosque (ce qui s'affiche en plein ecran sur la borne) + routes
 de test pour developper sans lecteur NFC ni manette branches."""
 
-from flask import Blueprint, render_template, jsonify, current_app, abort, request, url_for
+from flask import Blueprint, render_template, jsonify, current_app, abort, redirect, request, url_for
 
 import config
 from managers import object_manager, settings_manager
@@ -133,3 +133,36 @@ def demo_pointer():
         choice=data.get("choice"),
     )
     return jsonify({"ok": True})
+
+
+# --- v1.3 : jeux caches -------------------------------------------------------
+
+@kiosk_bp.route("/externe/quitter", methods=["POST"])
+def externe_quit():
+    """Echap sur l'ecran de la borne pendant un jeu cache (verifications
+    aprene, centre de jòcs) : retour au menu. Ne fait rien hors jeu cache."""
+    current_app.extensions["game_controller"].stop_external()
+    return jsonify({"ok": True})
+
+
+@kiosk_bp.route("/externe/manette", methods=["POST"])
+def externe_pad():
+    """v1.3 : bouton de manette lu par le navigateur de la borne pendant un
+    reglage arme depuis l'admin (Jòcs amagats > Manèta). Sans reglage en
+    cours, ignore."""
+    data = request.get_json(silent=True) or {}
+    ok = current_app.extensions["pad_capture"].submit(data.get("label"))
+    return jsonify({"ok": ok})
+
+
+@kiosk_bp.route("/externe/retour")
+def externe_return():
+    """v1.3 (version demo) : la page d'aprene renvoie la fenetre ici pour
+    signaler « quit », « login_failed »... (voir PAGE_SCRIPT dans
+    managers/browser_driver.py), puis la borne reprend la main."""
+    message = request.args.get("message", "")
+    controller = current_app.extensions["game_controller"]
+    handler = controller._external_handler
+    if message in ("quit", "login_failed", "page_error") and hasattr(handler, "on_message"):
+        handler.on_message(message)
+    return redirect(url_for("kiosk.index"))

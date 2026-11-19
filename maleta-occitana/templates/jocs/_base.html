@@ -1,0 +1,46 @@
+<!doctype html>
+{%- import 'kiosk/_macros.html' as m -%}
+{#- v1.3 : gabarit commun des pages du centre de jòcs (jeu cache) -- memes
+    polices, styles et mise a l'echelle 1280x720 que l'ecran de la borne
+    (copie de l'en-tete de kiosk.html). -#}
+<html lang="oc">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Centre de jòcs{% endblock %} — La Maleta Occitana</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Polices servies en local (static/fonts, aucune dependance reseau). -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fonts.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk-base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk-' ~ template ~ '.css') }}">
+  <script>
+    // v1.1 : mise a l'echelle de la scene 1280x720 (voir .stage dans
+    // kiosk-base.css). Execute le plus tot possible pour eviter un affichage
+    // a la mauvaise taille au chargement, puis a chaque redimensionnement.
+    (function () {
+      function layoutStage() {
+        var w = window.innerWidth || 1280, h = window.innerHeight || 720;
+        var scale, sw, sh;
+        if (w / h >= 1280 / 720) { scale = h / 720; sh = 720; sw = w / scale; }
+        else { scale = w / 1280; sw = 1280; sh = h / scale; }
+        var root = document.documentElement.style;
+        root.setProperty("--stage-scale", scale);
+        root.setProperty("--stage-w", sw + "px");
+        root.setProperty("--stage-h", sh + "px");
+      }
+      layoutStage();
+      window.addEventListener("resize", function () {
+        layoutStage();
+        if (window.maletaRefit) window.maletaRefit();
+      });
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/jocs.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body data-template="{{ template }}" class="{% block body_class %}{% endblock %}">
+{% block body %}{% endblock %}
+<script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jocs.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -69,6 +69,7 @@ apt-get install -y \
     libfreetype6-dev libportmidi-dev libjpeg-dev libpng-dev \
     fonts-dejavu-core fonts-noto-core \
     xserver-xorg xinit x11-xserver-utils unclutter chromium \
+    network-manager \
     git curl
 # - libsdl2-*-dev/libfreetype6-dev/libportmidi-dev/libjpeg-dev/libpng-dev :
 #   filet de securite pour pygame (compilation depuis les sources si jamais
@@ -111,6 +112,20 @@ polkit.addRule(function(action, subject) {
     }
 });
 EOF
+# v1.3 : Wi-Fi depuis l'admin (jeu cache aprene, voir
+# managers/wifi_manager.py) -- l'utilisateur de l'appli peut gerer les
+# connexions NetworkManager sans sudo. Les interfaces deja declarees dans
+# /etc/network/interfaces restent gerees par Debian (NetworkManager n'y
+# touche pas) : la connexion filaire ne change pas.
+cat > /etc/polkit-1/rules.d/50-maleta-wifi.rules <<EOF
+// Maleta Occitana : gestion du Wi-Fi depuis l'admin (utilisateur ${APP_USER} seulement).
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.NetworkManager.") == 0 && subject.user == "${APP_USER}") {
+        return polkit.Result.YES;
+    }
+});
+EOF
+systemctl enable --now NetworkManager || true
 systemctl restart polkit || true
 
 echo "== 5. Copie du code applicatif =="
@@ -261,12 +276,19 @@ SCREEN_RES="${SCREEN_RES:-1920x1080}"  # repli si la détection échoue malgré 
 SCREEN_WIDTH="${SCREEN_RES%x*}"
 SCREEN_HEIGHT="${SCREEN_RES#*x}"
 
+# v1.3 : --remote-debugging-port = port de pilotage du navigateur, utilise
+# par l'appli pour le jeu cache aprene (aller sur aprene puis revenir, voir
+# managers/browser_driver.py). Chromium ne l'ouvre que sur 127.0.0.1 : il
+# n'est pas joignable depuis le reseau. Profil dedie (--user-data-dir) : les
+# versions recentes refusent le port de pilotage sur le profil par defaut.
 exec chromium \
     --kiosk \
     --noerrdialogs \
     --disable-infobars \
     --disable-session-crashed-bubble \
     --incognito \
+    --remote-debugging-port=9222 \
+    --user-data-dir="$HOME/.config/maleta-chromium" \
     --autoplay-policy=no-user-gesture-required \
     --force-device-scale-factor=1 \
     --high-dpi-support=0 \

@@ -185,6 +185,10 @@ STATE_MEMORIA_CHOICE = "memoria_choice"
 STATE_MEMORIA_VILATGE_CHOICE = "memoria_vilatge_choice"
 STATE_QUIZ = "quiz"
 STATE_QUIZ_FIN = "quiz_fin"
+# v1.3 : jeu cache en cours (aprene, centre de jocs), lance depuis l'admin
+# seulement -- voir managers/hidden_games.py. La borne ignore alors ses
+# actions habituelles : c'est le jeu cache qui a la main.
+STATE_EXTERNE = "externe"
 
 # v1.03 : parties EN COURS pendant lesquelles poser un objet sur la maleta
 # est ignore (voir on_tag_scanned) -- Tròba l'objècte n'y figure pas : le
@@ -195,6 +199,7 @@ GAME_IN_PROGRESS_STATES = (
     STATE_MEMORIA,
     STATE_MEMORIA_VILATGE,
     STATE_QUIZ,
+    STATE_EXTERNE,
 )
 
 # Activites du menu "Tria un jòc" -- UNIQUEMENT des jeux (v0.8 : "Cadre fotó"
@@ -338,6 +343,12 @@ class GameController:
         # le menu et start_memoria) -- voir _open_memoria_choice.
         self.memoria_choice = None
         self.quiz = None  # dict {questions, index, score, feedback} pendant une manche -- v0.8
+        # v1.3 : jeu cache en cours (STATE_EXTERNE). `external` : infos
+        # affichees par le kiosque {kind, title, step, error} ;
+        # `_external_handler` : objet qui pilote ce jeu (on_action, on_stopped),
+        # voir managers/hidden_games.py.
+        self.external = None
+        self._external_handler = None
 
         self._idle_timer = None
         self._troba_word_timer = None
@@ -505,6 +516,13 @@ class GameController:
     def _dispatch_action(self, action):
         """Corps de on_action (voir sa docstring), toujours appele sous
         self._dispatch_lock."""
+        with self._lock:
+            handler = self._external_handler if self.state == STATE_EXTERNE else None
+        if handler is not None:
+            # v1.3 : jeu cache en cours -- les actions vont au jeu (ex. manette
+            # convertie en touches sur aprene), jamais aux ecrans de la borne.
+            handler.on_action(action)
+            return
         if action == "start_idle":
             # Raccourci global (bouton Start) : lancement volontaire du
             # diaporama/ecran vitrine, depuis n'importe quel ecran.
@@ -626,6 +644,7 @@ class GameController:
 
     def go_to_veille(self):
         self._cancel_all_timers()
+        self._leave_external()
         with self._lock:
             self._bump_epoch_locked()
             self.state = STATE_VEILLE
@@ -640,6 +659,7 @@ class GameController:
 
     def go_to_menu(self, notice=None):
         self._cancel_all_timers()
+        self._leave_external()
         with self._lock:
             self._bump_epoch_locked()
             self.state = STATE_MENU
@@ -655,6 +675,69 @@ class GameController:
         self._broadcast_state()
         # Pas de minuteur d'inactivite ici : le menu EST l'ecran d'accueil,
         # rien ne doit en faire sortir tout seul (voir docstring).
+
+    # --- Jeux caches (v1.3) ------------------------------------------------------
+
+    def start_external(self, kind, title, handler, step=None):
+        """Passe la borne en STATE_EXTERNE pour un jeu cache. Renvoie un jeton
+        a passer a update_external() : une mise a jour arrivee apres la fin
+        de ce jeu (ou le lancement d'un autre) est ignoree."""
+        with self._dispatch_lock:
+            self._cancel_all_timers()
+            self._leave_external()
+            with self._lock:
+                self._bump_epoch_locked()
+                token = self._epoch
+                self.state = STATE_EXTERNE
+                self.external = {"kind": kind, "title": title, "step": step, "error": None}
+                self._external_handler = handler
+                self.current_object = None
+                self.troba = self.vertadier = self.duel = self.memoria = self.memoria_choice = self.quiz = None
+            self._broadcast_state()
+            return token
+
+    def update_external(self, token, **fields):
+        """Met a jour l'ecran du jeu cache (etape, erreur). Sans effet si ce
+        jeu n'est plus en cours."""
+        with self._lock:
+            if self.state != STATE_EXTERNE or self._epoch != token or self.external is None:
+                return False
+            self.external.update(fields)
+        self._broadcast_state()
+        return True
+
+    def stop_external(self, token=None, notice=None):
+        """Fin du jeu cache (Echap, bouton Arreter de l'admin, erreur) :
+        retour au menu de la borne. `token` : ne stoppe que ce jeu-la."""
+        with self._dispatch_lock:
+            with self._lock:
+                if self.state != STATE_EXTERNE or (token is not None and self._epoch != token):
+                    return False
+            self.go_to_menu(notice=notice)
+            return True
+
+    def schedule_external_stop(self, token, seconds, notice=None):
+        """Retour automatique au menu (ex. 10 s apres une erreur affichee)."""
+        self._start_epoch_timer("_idle_timer", seconds, lambda: self.stop_external(token, notice))
+
+    def external_status(self):
+        with self._lock:
+            if self.state != STATE_EXTERNE or self.external is None:
+                return None
+            return dict(self.external)
+
+    def _leave_external(self):
+        """Quitte proprement un jeu cache en cours (appele a chaque changement
+        d'ecran) : le handler ramene le navigateur sur la borne, etc."""
+        with self._lock:
+            handler = self._external_handler
+            self._external_handler = None
+            self.external = None
+        if handler is not None:
+            try:
+                handler.on_stopped()
+            except Exception:
+                logger.exception("Erreur a l'arret du jeu cache")
 
     def _move_menu_selection(self, delta):
         with self._lock:
@@ -1502,6 +1585,7 @@ class GameController:
                 memoria["matched"] = set(self.memoria["matched"])
             memoria_choice = dict(self.memoria_choice) if self.memoria_choice else None
             quiz = dict(self.quiz) if self.quiz else None
+            external = dict(self.external) if self.external else None
 
         if state == STATE_VEILLE:
             with self.app.app_context():
@@ -1536,6 +1620,9 @@ class GameController:
 
         if state in (STATE_QUIZ, STATE_QUIZ_FIN):
             return self._quiz_payload(state, quiz)
+
+        if state == STATE_EXTERNE:
+            return {"state": state, **(external or {})}
 
         return {"state": state}
 

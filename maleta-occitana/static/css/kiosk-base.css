@@ -312,3 +312,10 @@ img { display: block; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* --- v1.3 : jeu cache en cours (aprene) ------------------------------------ */
+.externe-steps { list-style: none; margin: 30px 0 0; padding: 0; display: flex; flex-direction: column;
+  gap: 18px; font-size: 26px; font-weight: 700; flex: 1; }
+.externe-steps li { display: flex; gap: 14px; align-items: center; }
+.externe-steps li.todo { opacity: .45; }
+.externe-error { margin: 0 0 24px; font-size: 22px; font-weight: 600; max-width: 900px; }

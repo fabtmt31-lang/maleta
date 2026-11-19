@@ -1,6 +1,7 @@
 # Cahier des charges — Jòcs amagats (jeux cachés)
 
-**Statut : à valider avant développement.** Maquettes : [`maquettes/jocs-amagats/`](maquettes/jocs-amagats/).
+**Statut : réalisé en v1.3** (lots 0 à 5 ; lot 6 « options » non fait) — écarts
+avec ce document en fin de page (§ 12). Maquettes : [`maquettes/jocs-amagats/`](maquettes/jocs-amagats/).
 Demandes et remarques pour l'équipe aprene : [`aprene-demandes.md`](aprene-demandes.md).
 
 ## 1. Objectif
@@ -220,3 +221,26 @@ Maquette : `admin-2-wifi.png`.
   de connexion par jeton côté aprene supprimerait ce risque, voir [`aprene-demandes.md`](aprene-demandes.md)).
 - **Mot de passe `compet`** : connu de tous (README d'aprene, comptes de test) ; à changer avant
   l'ouverture au public, puis à reporter dans l'admin de la borne.
+
+## 12. Réalisation (v1.3) et écarts
+
+- Lots 0 à 5 réalisés ; **lot 6 non fait** (sauvegardes de partie, retour
+  automatique après inactivité dans le centre de jòcs).
+- **Version démo, messages vers la borne** : la politique de sécurité d'aprene
+  (CSP `script-src 'self'`, `default-src 'self'`) bloque le pont JavaScript de
+  la fenêtre de la démo et toute requête vers la borne. Le script ajouté sur
+  aprene renvoie donc la fenêtre sur `/externe/retour?message=…` de la borne
+  (une navigation n'est jamais bloquée). Sur la borne, le pilote Chromium a son
+  propre canal, sans ce détour.
+- **Capture des boutons de manette** : faite par l'écran de la borne (et par la
+  page de réglage si elle est ouverte sur la borne), pour que le réglage marche
+  aussi depuis un PC distant (tunnel SSH), où la manette n'est pas branchée.
+- **Vérifié** : avec le code d'aprene fourni (lancé localement) et un vrai
+  Chromium piloté — connexion automatique, arrivée sur `/competicion`,
+  manette, double Échap, mot de passe refusé, aprene injoignable ; la même
+  chose dans la fenêtre de la démo sous Linux (WebKitGTK) ; NES et Mega Drive
+  démarrent dans l'émulateur (ROM de test générées, aucun jeu réel), sans
+  aucune requête hors de la borne ; Wi-Fi avec un faux `nmcli`.
+- **À vérifier sur le matériel réel** : Wi-Fi (NetworkManager), fluidité de la
+  Mega Drive sur le petit PC, manettes USB (y compris le réglage à distance),
+  compétition aprene en ligne, démo aprene sous Windows (WebView2).

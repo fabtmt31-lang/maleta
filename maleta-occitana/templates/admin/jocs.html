@@ -1,0 +1,77 @@
+{% extends "admin/base.html" %}
+{% block title %}Jòcs amagats{% endblock %}
+{% block content %}
+<!-- v1.3 : jeux caches, lances uniquement d'ici (voir managers/hidden_games.py
+     et docs/cahier-des-charges-jocs-amagats.md). -->
+<div class="page-header">
+  <div>
+    <div class="page-eyebrow">Sistèma</div>
+    <h1>Jòcs amagats</h1>
+    <p class="muted" style="margin-top:4px">Jeux absents du menu des visiteurs : ils ne se lancent que d'ici, sur la borne ou
+    depuis un PC (tunnel SSH). Sur la borne, <strong>Échap</strong> ramène toujours au menu de la Maleta.</p>
+  </div>
+</div>
+
+{% if running %}
+<div class="flash" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+  Sur la borne en ce moment : <strong>{{ running.title }}</strong>{% if running.error %} — {{ running.error }}{% endif %}
+  <form method="post" action="{{ url_for('admin.jocs_stop') }}" style="margin-left:auto">
+    <button type="submit" class="button">■ Arrêter et revenir au menu</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="cards-grid">
+  <div class="card elev card-span-2">
+    <div class="card-kicker">Competicion en linha</div>
+    <div class="card-title">aprene</div>
+    <p class="muted" style="margin:0">Ouvre la compétition d'aprene sur l'écran de la borne, avec connexion automatique.
+      Le maître du jeu règle la partie au clavier et à la souris ; les joueurs peuvent répondre à la manette.
+      Pour revenir : <strong>Échap deux fois</strong>.</p>
+    <form method="post" action="{{ url_for('admin.jocs_aprene_save') }}" class="object-form" style="background:none;padding:0;max-width:none;">
+      <label>Adresse <input type="text" name="url" value="{{ aprene.url }}" required></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <label>Identifiant <input type="text" name="login" value="{{ aprene.login }}" autocomplete="off"></label>
+        <label>Mot de passe
+          <input type="password" name="password" autocomplete="new-password"
+                 placeholder="{{ '•••••• (enregistré — laisser vide pour le garder)' if aprene.password else 'à saisir' }}">
+        </label>
+      </div>
+      <label class="checkbox-label"><input type="checkbox" name="gamepad" value="1" {{ 'checked' if aprene.gamepad }}>
+        Manette pour les joueurs (croix = passer d'une réponse à l'autre, A = valider)</label>
+      <div class="form-actions"><button type="submit" class="button btn-secondary">Enregistrer</button></div>
+    </form>
+    <div class="form-actions" style="flex-wrap:wrap">
+      <form method="post" action="{{ url_for('admin.jocs_aprene_start') }}">
+        <button type="submit" class="button" {{ 'disabled' if not (aprene.login and aprene.password) }}>▶ Lancer sur la borne</button>
+      </form>
+      <form method="post" action="{{ url_for('admin.jocs_aprene_test') }}">
+        <button type="submit" class="button btn-secondary">Tester la connexion</button>
+      </form>
+      {%- if not demo_mode %}
+      <a href="{{ url_for('admin.wifi') }}" style="align-self:center">Réglages Wi-Fi →</a>
+      {%- endif %}
+    </div>
+    {%- if not (aprene.login and aprene.password) %}
+    <p class="muted" style="margin:0">Saisir d'abord l'identifiant et le mot de passe du compte compétition.</p>
+    {%- endif %}
+  </div>
+
+  {%- if not demo_mode %}
+  <div class="card elev">
+    <div class="card-kicker">Emulator</div>
+    <div class="card-title">Centre de jòcs</div>
+    <p class="muted" style="margin:0">NES et Mega Drive, à la manette ou au clavier, 1 ou 2 joueurs.</p>
+    <ul style="margin:6px 0 10px">
+      <li>{{ roms_total }} jeu(x) actif(s){% if roms_total %} ({{ roms_count.nes }} NES, {{ roms_count.md }} Mega Drive){% endif %}</li>
+      <li>Manette réglée : {% for p in [1, 2] %}joueur {{ p }} {{ '✓' if p in players_with_pad else '—' }}{{ ' · ' if loop.first }}{% endfor %}</li>
+    </ul>
+    <form method="post" action="{{ url_for('admin.jocs_centre_start') }}">
+      <button type="submit" class="button" {{ 'disabled' if not roms_total }}>▶ Lancer le centre de jòcs</button>
+    </form>
+    <p style="margin:8px 0 0"><a href="{{ url_for('admin.jocs_library') }}">Bibliothèque des jeux →</a><br>
+      <a href="{{ url_for('admin.jocs_controls') }}">Réglage de la manette →</a></p>
+  </div>
+  {%- endif %}
+</div>
+{% endblock %}

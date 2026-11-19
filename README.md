@@ -19,7 +19,7 @@ et se met à jour exactement comme les précédentes, sans perdre le contenu
 déjà saisi :
 
 ```bash
-unzip -o maleta-occitana-v1.22.zip -d ~
+unzip -o maleta-occitana-v1.3.zip -d ~
 cd ~/maleta-occitana
 sudo bash install.sh
 ```
@@ -27,6 +27,27 @@ sudo bash install.sh
 Depuis la v1.2 elle a, comme la démo, la page **Admin > Exportar /
 Importar** (export, import d'un export de la démo) et, depuis la v1.21,
 l'import de **fichiers CSV** (voir plus bas).
+
+## Jeux cachés (Jòcs amagats, v1.3)
+
+Absents du menu des visiteurs, ils se lancent uniquement depuis
+**Admin > Jòcs amagats** :
+
+- **aprene** (borne et démo) : la compétition en ligne d'aprene, avec
+  connexion automatique au compte compétition (identifiant et mot de passe
+  à saisir une fois dans cette page). Le maître du jeu règle la partie au
+  clavier et à la souris ; les joueurs peuvent répondre à la manette.
+  **Échap deux fois** pour revenir à la Maleta.
+- **Centre de jòcs** (borne) : émulateur NES et Mega Drive. Ajouter les
+  jeux dans *Bibliotèca* (fichiers `.nes`, `.md`, `.gen`, `.bin`, `.smd`,
+  fournis par l'école — la Maleta n'en livre aucun), régler la manette dans
+  *Manèta*, puis « Lancer le centre de jòcs ». **Échap** pour sortir.
+- **Wi-Fi** (borne) : *Admin > Jòcs amagats > Réglages Wi-Fi*, pour qu'aprene
+  soit joignable. Le reste de la borne fonctionne toujours sans réseau.
+
+Après la mise à jour de la borne (`sudo bash install.sh`), **redémarrer la
+borne** une fois. Détail : [cahier des charges](docs/cahier-des-charges-jocs-amagats.md),
+[ce qu'il faut savoir côté aprene](docs/aprene-demandes.md).
 
 ## Administrer la borne depuis un autre PC (tunnel SSH)
 

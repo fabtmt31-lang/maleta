@@ -18,7 +18,8 @@ APP_PACKAGES = ("app", "config", "managers", "blueprints", "db", "run_dev", "run
 def app_datas():
     out = []
     for folder, dirs, files in os.walk(APP):
-        dirs[:] = [d for d in dirs if d not in ("__pycache__", "media", "docs", "sauvegardes")]
+        # vendor : emulateur du centre de jòcs, absent de la demo (borne seulement).
+        dirs[:] = [d for d in dirs if d not in ("__pycache__", "media", "docs", "sauvegardes", "vendor")]
         for name in files:
             if name.endswith((".pyc", ".db")) or name in ("install.sh", ".secret_key"):
                 continue

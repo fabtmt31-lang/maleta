@@ -1,0 +1,47 @@
+{% extends "jocs/_base.html" %}
+{#- v1.3 : centre de jòcs -- une tuile par jeu actif de la bibliotheque
+    (Admin > Jòcs amagats > Bibliotèca), 6 par page. Navigation : static/js/jocs.js. -#}
+{% block body_class %}jocs-centre{% endblock %}
+{% block body %}
+<section class="screen">
+  <div class="stage menu">
+    {%- if template == 'senhal' %}
+    <div class="deco deco-menu-cross">{{ m.cross('#B3141C', sw=4.4) }}</div>
+    {%- elif template == 'mercat' %}
+    <div class="deco scallop"></div>
+    {%- endif %}
+    <header class="topbar">
+      {{ m.brand(texts, branding, template) }}
+      <span class="jocs-page" id="jocs-page"></span>
+    </header>
+    <div class="menu-heading"><h1 class="menu-title">Centre de jòcs</h1></div>
+    {%- if games %}
+    <div class="tiles tiles-menu" id="jocs-tiles">
+      {%- for game in games %}
+      <div class="tile tile-jocs" data-url="{{ game.url }}">
+        <span class="tile-num">{{ '%02d' % loop.index }}</span>
+        <span class="tile-icon">
+          {%- if game.cover %}<img src="{{ game.cover }}" alt="">{% else %}<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-3.96 3.43l-.73 5.1A3 3 0 0 0 5 17c1 0 1.9-.6 2.3-1.5L8 14h8l.7 1.5A2.5 2.5 0 0 0 19 17a3 3 0 0 0 3-3.47l-.73-5.1A4 4 0 0 0 17.3 5z"/></svg>{% endif -%}
+        </span>
+        <span class="tile-text">
+          <span class="tile-label-oc">{{ game.title }}</span>
+          <span class="tile-label-fr">{{ game.system }}{% if game.players %} · {{ game.players }} jogaire(s){% endif %}</span>
+        </span>
+      </div>
+      {%- endfor %}
+    </div>
+    {%- else %}
+    <div class="notice">Pas encara de jòc : ajouter des jeux dans Admin › Jòcs amagats › Bibliotèca.</div>
+    <div style="flex:1"></div>
+    {%- endif %}
+    <footer class="menu-foot">
+      <div class="hints" style="margin-left:auto">
+        <span class="hint">{{ m.key(m.icon('dpad', sw=0), cls='key-dpad') }}<span>causir</span></span>
+        <span class="hint">{{ m.key('A', cls='key-accent') }}<span>jogar</span></span>
+        <span class="hint">{{ m.key('Échap') }}<span>tornar a la Maleta</span></span>
+      </div>
+    </footer>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script>jocsCentre();</script>{% endblock %}

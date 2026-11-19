@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.22** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.3** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -406,6 +406,47 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.3** (19/11/2026) — **jeux cachés** (« Jòcs amagats »), demandés par
+  Fabien : des jeux absents du menu des visiteurs, lancés uniquement depuis
+  **Admin > Jòcs amagats** (sur la borne, ou depuis un PC par le tunnel SSH).
+  Cahier des charges et maquettes : `docs/cahier-des-charges-jocs-amagats.md`
+  à la racine du dépôt.
+  1. **aprene** (borne et démo) : la compétition en ligne
+     `aprene.appsdoc.fr/competicion`. Le navigateur de la borne y va
+     (aprene interdit d'être affiché dans une autre page), se connecte tout
+     seul au compte compétition (identifiant et mot de passe saisis dans
+     l'admin, jamais exportés ni réaffichés), puis revient. Le maître du jeu
+     règle la partie au clavier et à la souris ; les joueurs peuvent
+     répondre à la **manette** (croix = passer d'une réponse à l'autre,
+     A = valider). **Échap deux fois** pour revenir (le 1er affiche un
+     bandeau de confirmation). Vérifications avant le départ (internet,
+     aprene), écran d'erreur clair et retour automatique au menu si quelque
+     chose manque (Wi-Fi, mot de passe refusé, page qui ne charge plus).
+     Code : `managers/hidden_games.py`, `managers/browser_driver.py`.
+  2. **Centre de jòcs** (borne) : émulateur **NES et Mega Drive**
+     (EmulatorJS, servi en local depuis `static/vendor/emulatorjs/`, aucun
+     accès réseau). Bibliothèque des jeux dans l'admin (envoi de plusieurs
+     fichiers, console reconnue à l'extension, titre, jaquette, actif) ;
+     écran de choix des jeux au style de la borne, 1 ou 2 joueurs.
+     **Échap** : pendant une partie → retour au centre ; depuis le centre →
+     retour à la Maleta. Les fichiers de jeux sont ajoutés par l'école,
+     jamais livrés ni exportés. Code : `blueprints/jocs.py`,
+     `managers/rom_manager.py`, `static/js/jocs.js`.
+  3. **Réglage de la manette de l'émulateur** (Admin > Jòcs amagats >
+     Manèta) : par console et par joueur, bouton de manette (capturé par
+     l'écran de la borne, donc aussi depuis un PC distant) et touche du
+     clavier ; Mega Drive 3 ou 6 boutons ; zone de test ; valeurs par défaut.
+  4. **Wi-Fi** dans l'admin (borne) : état, réseaux visibles, connexion,
+     réseau caché, oubli. NetworkManager, mots de passe gardés par le
+     système (jamais dans la base de la Maleta).
+  **Mise à jour de la borne** : `sudo bash install.sh` (installe
+  NetworkManager, la règle d'autorisation Wi-Fi, et lance désormais Chromium
+  avec son port de pilotage local), puis **redémarrer la borne**
+  (`sudo reboot`) pour que le nouveau lancement de Chromium soit pris en
+  compte. Les interfaces réseau déjà configurées par Debian ne changent pas.
+  Pas encore fait (lot 6 du cahier des charges) : sauvegarde des parties de
+  l'émulateur, retour automatique au menu après inactivité dans le centre
+  de jòcs.
 - **v1.22** (11/11/2026) — corrections issues de la relecture du code
   (points 1 à 7 validés par Fabien). Pas de nouvelle fonction de jeu.
   1. **Import en mode « Remplacer » qui effaçait trop** (bug v1.21) :

@@ -1,0 +1,54 @@
+{% extends "admin/base.html" %}
+{% block title %}Bibliotèca dels jòcs{% endblock %}
+{% block content %}
+<!-- v1.3 : bibliotheque du centre de jòcs (managers/rom_manager.py). -->
+<div class="page-header">
+  <div><div class="page-eyebrow"><a href="{{ url_for('admin.jocs') }}">Jòcs amagats</a> · Centre de jòcs</div>
+    <h1>Bibliotèca dels jòcs</h1></div>
+</div>
+<div class="flash">Les fichiers de jeux (ROM) ne sont jamais fournis avec la Maleta, ni inclus dans ses exports : ils sont
+  ajoutés ici par l'école, sous sa responsabilité (copie de ses propres cartouches, ou jeux libres « homebrew »).</div>
+
+<form method="post" enctype="multipart/form-data" class="object-form" style="max-width:none;margin-bottom:20px">
+  <label>Ajouter des jeux (plusieurs fichiers possibles)
+    <input type="file" name="files" multiple accept=".nes,.md,.gen,.bin,.smd" required></label>
+  <p class="muted" style="margin:0">NES <code>.nes</code> (≤ 1 Mo) · Mega Drive <code>.md .gen .bin .smd</code> (≤ 8 Mo) —
+    la console est reconnue à l'extension.</p>
+  <div class="form-actions"><button type="submit" class="button">+ Ajouter</button></div>
+</form>
+
+<table class="admin-table">
+  <thead><tr><th style="width:84px">Jaquette</th><th>Titre · joueurs</th><th>Console</th><th>Actif</th><th></th></tr></thead>
+  <tbody>
+  {% for rom in roms %}
+    <tr>
+      <td>
+        <form method="post" action="{{ url_for('admin.jocs_library_edit', rom_id=rom.id) }}" enctype="multipart/form-data" id="rom-{{ rom.id }}"></form>
+        {%- if rom.cover_filename %}
+        <img src="{{ url_for('jocs.cover', filename=rom.cover_filename) }}" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:8px">
+        <label class="checkbox-label" style="font-size:12px"><input type="checkbox" name="remove_cover" value="1" form="rom-{{ rom.id }}"> retirer</label>
+        {%- else %}
+        <div style="width:64px;height:48px;border-radius:8px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px">{{ systems[rom.system].label if rom.system in systems else '?' }}</div>
+        {%- endif %}
+        <input type="file" name="cover" accept=".png,.jpg,.jpeg,.webp" form="rom-{{ rom.id }}" style="font-size:11px;max-width:150px">
+      </td>
+      <td>
+        <input class="input" type="text" name="title" value="{{ rom.title }}" form="rom-{{ rom.id }}" style="width:100%;font-weight:700">
+        <input class="input" type="text" name="players" value="{{ rom.players or '' }}" placeholder="joueurs (ex. 1-2)" form="rom-{{ rom.id }}" style="width:140px;margin-top:6px">
+      </td>
+      <td><span class="tag {{ 'tag-accent' if rom.system == 'nes' else 'tag-neutral' }}">{{ systems[rom.system].label if rom.system in systems else rom.system }}</span></td>
+      <td><label class="checkbox-label"><input type="checkbox" name="active" value="1" form="rom-{{ rom.id }}" {{ 'checked' if rom.active }}> actiu</label></td>
+      <td class="row-actions">
+        <button type="submit" class="button btn-secondary" form="rom-{{ rom.id }}">Enregistrer</button>
+        <form method="post" action="{{ url_for('admin.jocs_library_delete', rom_id=rom.id) }}" style="display:inline"
+              onsubmit="return confirm('Supprimer ce jeu et son fichier ?')">
+          <button type="submit" class="link-danger" style="background:none;border:0;cursor:pointer">Supprimer</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="muted">Aucun jeu pour l'instant.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

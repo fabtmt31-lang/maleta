@@ -18,7 +18,7 @@ from flask import (
 
 import config
 from managers import (
-    content_transfer, duel_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
+    content_transfer, duel_manager, hidden_games, rom_manager, wifi_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
     vertadier_manager, village_manager,
 )
 from managers.tag_reader import SimulatedTagReader
@@ -1272,3 +1272,260 @@ def transfer_import():
         bundle_info=bundle_info,
         imported_files=[u.filename for u in uploads],
     )
+
+
+# --- Jòcs amagats (v1.3) ------------------------------------------------------
+# Jeux absents du menu des visiteurs, lances uniquement d'ici : competition
+# aprene et centre de jòcs (emulateur NES / Mega Drive, borne seulement).
+# Voir managers/hidden_games.py et docs/cahier-des-charges-jocs-amagats.md.
+
+@admin_bp.route("/jocs")
+@login_required
+def jocs():
+    controller = current_app.extensions["game_controller"]
+    roms_count = rom_manager.counts()
+    controls = rom_manager.get_controls()
+    return render_template(
+        "admin/jocs.html",
+        aprene=hidden_games.get_aprene_settings(),
+        running=controller.external_status(),
+        roms_count=roms_count,
+        roms_total=sum(roms_count.values()),
+        systems=rom_manager.SYSTEMS,
+        players_with_pad=[p for p in rom_manager.PLAYERS
+                          if any(v["pad"] for v in controls["nes"][str(p)].values())],
+    )
+
+
+@admin_bp.route("/jocs/aprene", methods=["POST"])
+@login_required
+def jocs_aprene_save():
+    try:
+        hidden_games.set_aprene_settings(
+            request.form.get("url"), request.form.get("login"), request.form.get("password"),
+            bool(request.form.get("gamepad")),
+        )
+        flash("Réglages aprene enregistrés")
+    except ValueError as exc:
+        flash(str(exc))
+    return redirect(url_for("admin.jocs"))
+
+
+@admin_bp.route("/jocs/aprene/tester", methods=["POST"])
+@login_required
+def jocs_aprene_test():
+    step, message = hidden_games.check_aprene(hidden_games.get_aprene_settings()["url"])
+    flash(message or "aprene répond : connexion internet OK.")
+    return redirect(url_for("admin.jocs"))
+
+
+@admin_bp.route("/jocs/aprene/lancar", methods=["POST"])
+@login_required
+def jocs_aprene_start():
+    hidden_games.start_aprene(current_app._get_current_object())
+    flash("aprene se lance sur l'écran de la borne (Échap deux fois pour revenir).")
+    return redirect(url_for("admin.jocs"))
+
+
+@admin_bp.route("/jocs/lancar", methods=["POST"])
+@login_required
+def jocs_centre_start():
+    if config.DEMO_MODE:
+        return redirect(url_for("admin.jocs"))
+    hidden_games.start_jocs(current_app._get_current_object())
+    flash("Centre de jòcs lancé sur l'écran de la borne (Échap pour revenir).")
+    return redirect(url_for("admin.jocs"))
+
+
+@admin_bp.route("/jocs/arrestar", methods=["POST"])
+@login_required
+def jocs_stop():
+    current_app.extensions["game_controller"].stop_external()
+    flash("Jeu arrêté : la borne revient au menu.")
+    return redirect(url_for("admin.jocs"))
+
+
+@admin_bp.route("/jocs/bibliotheca", methods=["GET", "POST"])
+@login_required
+def jocs_library():
+    if config.DEMO_MODE:
+        return redirect(url_for("admin.jocs"))
+    if request.method == "POST":
+        files = [f for f in request.files.getlist("files") if f and f.filename]
+        added, refused = 0, []
+        for file_storage in files:
+            try:
+                rom_manager.add_rom_upload(file_storage)
+                added += 1
+            except ValueError as exc:
+                refused.append(str(exc))
+        message = f"{added} jeu(x) ajouté(s)." if added else "Aucun jeu ajouté."
+        if refused:
+            message += " Refusé(s) : " + " ; ".join(refused)
+        flash(message)
+        return redirect(url_for("admin.jocs_library"))
+    return render_template("admin/jocs_bibliotheca.html", roms=rom_manager.list_roms(), systems=rom_manager.SYSTEMS)
+
+
+@admin_bp.route("/jocs/bibliotheca/<int:rom_id>", methods=["POST"])
+@login_required
+def jocs_library_edit(rom_id):
+    try:
+        cover = None
+        if "cover" in request.files and request.files["cover"].filename:
+            cover = rom_manager.save_cover(request.files["cover"])
+        rom_manager.update_rom(
+            rom_id, request.form.get("title"), request.form.get("players"),
+            bool(request.form.get("active")), cover_filename=cover,
+            clear_cover=bool(request.form.get("remove_cover")),
+        )
+        flash("Jeu enregistré")
+    except ValueError as exc:
+        flash(str(exc))
+    return redirect(url_for("admin.jocs_library"))
+
+
+@admin_bp.route("/jocs/bibliotheca/<int:rom_id>/supprimir", methods=["POST"])
+@login_required
+def jocs_library_delete(rom_id):
+    rom_manager.delete_rom(rom_id)
+    flash("Jeu supprimé (fichier compris)")
+    return redirect(url_for("admin.jocs_library"))
+
+
+@admin_bp.route("/jocs/maneta")
+@login_required
+def jocs_controls():
+    if config.DEMO_MODE:
+        return redirect(url_for("admin.jocs"))
+    return render_template(
+        "admin/jocs_maneta.html",
+        controls=rom_manager.get_controls(),
+        buttons=rom_manager.BUTTONS,
+        six_buttons=rom_manager.get_six_buttons(),
+        six_names=rom_manager.SIX_BUTTONS,
+        systems=rom_manager.SYSTEMS,
+        players=rom_manager.PLAYERS,
+    )
+
+
+@admin_bp.route("/jocs/maneta/assignar", methods=["POST"])
+@login_required
+def jocs_controls_assign():
+    """Touche clavier (capturee dans la page) ou effacement d'un reglage."""
+    data = request.get_json(silent=True) or request.form
+    try:
+        rom_manager.set_control(data.get("system"), data.get("player"), data.get("button"),
+                                data.get("kind"), (data.get("value") or "").strip())
+    except (ValueError, TypeError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    return jsonify({"ok": True})
+
+
+@admin_bp.route("/jocs/maneta/escotar", methods=["POST"])
+@login_required
+def jocs_controls_listen():
+    """Bouton de manette : la capture est faite par le navigateur de la BORNE
+    (ecran de la borne, ou cette page si elle y est ouverte) -- la page admin
+    peut etre ouverte sur un PC distant, sans la manette."""
+    data = request.get_json(silent=True) or {}
+    capture = current_app.extensions["pad_capture"]
+    try:
+        capture.arm(data.get("system"), data.get("player"), data.get("button"))
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    current_app.extensions["socketio"].emit("pad_capture", {"seconds": capture.TIMEOUT}, namespace="/kiosk")
+    return jsonify({"ok": True, "seconds": capture.TIMEOUT})
+
+
+@admin_bp.route("/jocs/maneta/escotar/estat")
+@login_required
+def jocs_controls_listen_status():
+    return jsonify(current_app.extensions["pad_capture"].status())
+
+
+@admin_bp.route("/jocs/maneta/escotar/anullar", methods=["POST"])
+@login_required
+def jocs_controls_listen_cancel():
+    current_app.extensions["pad_capture"].cancel()
+    return jsonify({"ok": True})
+
+
+@admin_bp.route("/jocs/maneta/defauts", methods=["POST"])
+@login_required
+def jocs_controls_reset():
+    rom_manager.reset_controls()
+    flash("Manette : valeurs par défaut rétablies")
+    return redirect(url_for("admin.jocs_controls"))
+
+
+@admin_bp.route("/jocs/maneta/sieis", methods=["POST"])
+@login_required
+def jocs_controls_six():
+    rom_manager.set_six_buttons(bool(request.form.get("six")))
+    return redirect(url_for("admin.jocs_controls"))
+
+
+
+# --- Wi-Fi (v1.3, borne) ----------------------------------------------------------
+# Pour aprene seulement (managers/wifi_manager.py, NetworkManager).
+
+@admin_bp.route("/wifi")
+@login_required
+def wifi():
+    if config.DEMO_MODE:
+        return redirect(url_for("admin.jocs"))
+    status = wifi_manager.status()
+    networks, scan_error = [], None
+    if status["available"]:
+        try:
+            networks = wifi_manager.scan(rescan=request.args.get("actualiser") == "1")
+        except wifi_manager.WifiError as exc:
+            scan_error = str(exc)
+    return render_template(
+        "admin/wifi.html", status=status, networks=networks, scan_error=scan_error,
+        bars=wifi_manager.bars, selected=request.args.get("reseau", ""),
+    )
+
+
+@admin_bp.route("/wifi/connectar", methods=["POST"])
+@login_required
+def wifi_connect():
+    ssid = request.form.get("ssid", "")
+    try:
+        wifi_manager.connect(ssid, request.form.get("password", ""), hidden=bool(request.form.get("hidden")))
+        flash(f"Connectée à « {ssid} ».")
+    except wifi_manager.WifiError as exc:
+        flash(f"Connexion à « {ssid} » impossible : {exc}")
+    return redirect(url_for("admin.wifi"))
+
+
+@admin_bp.route("/wifi/oblidar", methods=["POST"])
+@login_required
+def wifi_forget():
+    ssid = request.form.get("ssid", "")
+    try:
+        wifi_manager.forget(ssid)
+        flash(f"Réseau « {ssid} » oublié.")
+    except wifi_manager.WifiError as exc:
+        flash(str(exc))
+    return redirect(url_for("admin.wifi"))
+
+
+@admin_bp.route("/wifi/desconnectar", methods=["POST"])
+@login_required
+def wifi_disconnect():
+    try:
+        wifi_manager.disconnect()
+        flash("Wi-Fi déconnecté.")
+    except wifi_manager.WifiError as exc:
+        flash(str(exc))
+    return redirect(url_for("admin.wifi"))
+
+
+@admin_bp.route("/wifi/tester", methods=["POST"])
+@login_required
+def wifi_test():
+    step, message = hidden_games.check_aprene(hidden_games.get_aprene_settings()["url"])
+    flash(message or "Internet OK — aprene répond.")
+    return redirect(url_for("admin.wifi"))

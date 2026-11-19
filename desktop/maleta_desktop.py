@@ -202,6 +202,11 @@ def main():
         def toggle_fullscreen(self):
             window_ref["main"].toggle_fullscreen()
 
+        def aprene_event(self, message):
+            # Messages du script ajoute sur les pages d'aprene (jeu cache,
+            # voir managers/browser_driver.py) : « quit », « login_failed »...
+            webview_driver.receive(message)
+
     def T(title):
         return _MenuTitle(title) if sys.platform.startswith("linux") else title
 
@@ -231,13 +236,20 @@ def main():
     )
     window_ref["main"] = window
 
+    # v1.3 : jeu cache aprene dans la fenetre de la demo (meme script et memes
+    # messages que le pilote Chromium de la borne, voir managers/browser_driver.py).
+    webview_driver = WebviewDriver(window, base_url)
+    app.extensions["browser_driver_factory"] = lambda: webview_driver
+
     def on_loaded():
-        # F11 = plein ecran, sur toutes les pages (kiosque comme admin).
-        window.evaluate_js(
+        # F11 = plein ecran, sur toutes les pages (kiosque comme admin). run_js :
+        # sans eval(), interdit par certaines pages (aprene, CSP).
+        window.run_js(
             "if(!window.__maletaF11){window.__maletaF11=true;"
             "window.addEventListener('keydown',function(e){if(e.key==='F11'){e.preventDefault();"
             "window.pywebview&&window.pywebview.api.toggle_fullscreen();}});}"
         )
+        webview_driver.on_page_loaded()
 
     window.events.loaded += on_loaded
     webview.settings["ALLOW_DOWNLOADS"] = True
@@ -289,6 +301,51 @@ def _show_error(message, data_dir):
         except Exception:
             pass
     print(detail, file=sys.stderr or sys.stdout)
+
+
+class WebviewDriver:
+    """Pilote de navigateur de la version demo (v1.3, jeu cache aprene) :
+    meme interface que CdpDriver (managers/browser_driver.py), avec la
+    fenetre pywebview. Le script de page est ajoute a chaque chargement
+    d'une page hors de la Maleta ; il repond par window.pywebview.api."""
+
+    def __init__(self, window, base_url):
+        self.window = window
+        self.base_url = base_url
+        self.home_url = base_url + "/"  # ou le script de page renvoie la fenetre
+        self._script = None
+        self._on_message = None
+
+    def open(self, on_message):
+        self._on_message = on_message
+
+    def add_page_script(self, source):
+        self._script = source
+
+    def navigate(self, url):
+        self.window.load_url(url)
+
+    def evaluate(self, expression):
+        # run_js et non evaluate_js : evaluate_js passe par eval(), interdit
+        # par la politique de securite (CSP) des pages d'aprene.
+        try:
+            self.window.run_js(expression)
+        except Exception:
+            pass
+
+    def on_page_loaded(self):
+        url = self.window.get_current_url() or ""
+        if self._script and not url.startswith(self.base_url):
+            self.evaluate(self._script)
+
+    def receive(self, message):
+        if self._on_message:
+            threading.Thread(target=self._on_message, args=(message,), daemon=True).start()
+
+    def close(self, return_url=None):
+        self._script = None
+        self._on_message = None
+        self.window.load_url(self.base_url + "/")
 
 
 class _MenuTitle(str):

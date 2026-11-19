@@ -1,0 +1,42 @@
+{% extends "jocs/_base.html" %}
+{#- v1.3 : partie du centre de jòcs -- EmulatorJS servi en local
+    (static/vendor/emulatorjs, voir packaging/fetch_emulatorjs.sh). Manette :
+    reglee dans Admin > Jòcs amagats > Manèta (EJS_defaultControls). Echap :
+    retour au centre de jòcs (static/js/jocs.js). -#}
+{% block title %}{{ rom.title }}{% endblock %}
+{% block body_class %}jocs-joc{% endblock %}
+{% block body %}
+<div id="game"></div>
+<div class="jocs-exit-hint" id="jocs-exit-hint">{{ m.key('Échap') }}<span>tornar al centre de jòcs</span></div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // La borne fonctionne hors reseau : EmulatorJS cherche quand meme une mise
+  // a jour sur son site au demarrage -- reponse vide immediate, sans reseau.
+  (function () {
+    const realFetch = window.fetch;
+    window.fetch = function (input, init) {
+      const url = typeof input === "string" ? input : (input && input.url) || "";
+      if (url.indexOf("emulatorjs.org") !== -1) return Promise.resolve(new Response(null, { status: 404 }));
+      return realFetch.call(this, input, init);
+    };
+  })();
+  jocsPartida();
+  window.EJS_player = "#game";
+  window.EJS_core = {{ core | tojson }};
+  window.EJS_gameUrl = {{ rom_url | tojson }};
+  window.EJS_gameName = {{ rom.title | tojson }};
+  window.EJS_pathtodata = {{ url_for('static', filename='vendor/emulatorjs/data/') | tojson }};
+  window.EJS_DEBUG_XX = true;           // scripts non minifies (seuls fournis par npm)
+  window.EJS_disableAutoLang = false;   // interface d'EmulatorJS non affichee : pas de traduction a charger
+  window.EJS_startOnLoaded = true;
+  window.EJS_disableDatabases = true;
+  window.EJS_disableLocalStorage = true; // toujours les reglages de l'admin, jamais d'anciens reglages du navigateur
+  window.EJS_color = "#B3141C";
+  window.EJS_backgroundColor = "#000";
+  window.EJS_volume = 0.8;
+  window.EJS_Buttons = {{ buttons | tojson }};
+  window.EJS_defaultControls = {{ controls | tojson }};
+</script>
+<script src="{{ url_for('static', filename='vendor/emulatorjs/data/loader.js') }}"></script>
+{% endblock %}

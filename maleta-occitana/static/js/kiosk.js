@@ -14,6 +14,7 @@
 const TEMPLATE = window.MALETA_TEMPLATE || document.body.dataset.template || "senhal";
 
 const screens = {
+  externe: document.getElementById("screen-externe"),
   attract: document.getElementById("screen-attract"),
   diaporama: document.getElementById("screen-diaporama"),
   descoberta: document.getElementById("screen-descoberta"),
@@ -204,6 +205,7 @@ function playObjectAudio(filename) {
 }
 
 function renderState(payload) {
+  externeActive = payload.state === "externe";
   if (!AUDIO_STATES.includes(payload.state)) pauseObjectAudio();
   if (payload.state === "descoberta" && payload.object) {
     showDescoberta(payload.object);
@@ -235,6 +237,8 @@ function renderState(payload) {
     showQuiz(payload);
   } else if (payload.state === "quiz_fin") {
     showQuizFin(payload);
+  } else if (payload.state === "externe") {
+    showExterne(payload);
   } else {
     showVeille([]);
   }
@@ -872,6 +876,53 @@ $("object-audio-btn").addEventListener("click", () => {
 
 // Etat initial fourni par le serveur au chargement de la page (evite un
 // flash "accueil" avant la premiere connexion websocket).
+// --- v1.3 : jeu cache en cours (Admin > Jòcs amagats) ----------------------
+//
+// Centre de jòcs : page a part (/jocs/), qui lit elle-meme la manette.
+// aprene : etapes de verification affichees ici, puis le serveur envoie le
+// navigateur de la borne sur aprene (managers/hidden_games.py). Echap annule.
+
+const EXTERNE_STEPS = [
+  ["internet", "Connexion internet"],
+  ["aprene", "aprene joignable"],
+  ["login", "Connexion du compte compétition"],
+];
+let externeActive = false;
+
+function showExterne(payload) {
+  stopDiaporama();
+  if (payload.kind === "jocs") {
+    window.location.href = "/jocs/";
+    return;
+  }
+  externeActive = true;
+  showOnly("externe");
+  $("externe-title").textContent = payload.title || "";
+  const list = $("externe-steps");
+  list.textContent = "";
+  const current = EXTERNE_STEPS.findIndex(([key]) => key === payload.step);
+  EXTERNE_STEPS.forEach(([key, label], index) => {
+    const li = document.createElement("li");
+    let mark = "⏳";
+    if (payload.step === "playing" || index < current) mark = "✅";
+    else if (index > current) { mark = "•"; li.className = "todo"; }
+    else if (payload.error) mark = "❌";
+    li.textContent = mark + " " + label + (index === current && !payload.error && payload.step !== "playing" ? "…" : "");
+    list.appendChild(li);
+  });
+  const error = $("externe-error");
+  error.textContent = payload.error ? payload.error + " Retour au menu dans quelques secondes." : "";
+  error.classList.toggle("hidden", !payload.error);
+  $("externe-hint").textContent = payload.error ? "tornar al menú" : "anullar";
+}
+
+window.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !externeActive || event.repeat) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  fetch("/externe/quitter", { method: "POST" });
+}, true);
+
 renderState(window.MALETA_INITIAL_STATE);
 
 // Raccourci admin (Ctrl+Alt+A) : le kiosque tourne en Chromium --kiosk, sans
