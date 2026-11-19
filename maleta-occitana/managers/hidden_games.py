@@ -66,16 +66,13 @@ def set_aprene_settings(url, login, password, gamepad):
 
 def check_aprene(url, timeout=8):
     """Renvoie (etape_en_echec, message) ; (None, None) si aprene repond.
-    Etapes : "internet" (adresse introuvable), "aprene" (le site ne repond
-    pas correctement)."""
+    Etapes : "internet" (adresse introuvable / pas de reseau), "aprene" (le
+    site ne repond pas correctement). Une seule requete HTTP (proxy du
+    reseau respecte) : pas de resolution DNS a part, qui echoue a tort
+    derriere un proxy d'ecole alors que le navigateur, lui, passe."""
     parts = urlsplit(url)
-    host = parts.hostname
-    if not host:
+    if not parts.hostname:
         return "aprene", "Adresse d'aprene invalide (voir Admin > Jòcs amagats)."
-    try:
-        socket.getaddrinfo(host, parts.port or (443 if parts.scheme == "https" else 80))
-    except OSError:
-        return "internet", "Pas de connexion internet (adresse d'aprene introuvable)."
     health = f"{parts.scheme}://{parts.netloc}/healthz"
     try:
         with urllib.request.urlopen(health, timeout=timeout) as resp:
@@ -85,6 +82,8 @@ def check_aprene(url, timeout=8):
         return "aprene", f"aprene ne répond pas correctement (code {exc.code})."
     except (urllib.error.URLError, OSError) as exc:
         reason = getattr(exc, "reason", exc)
+        if isinstance(reason, socket.gaierror):
+            return "internet", "Pas de connexion internet (adresse d'aprene introuvable)."
         return "aprene", f"aprene ne répond pas ({reason})."
     return None, None
 

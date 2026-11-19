@@ -271,3 +271,33 @@ def test_demo_return_route(tmp_path, monkeypatch):
     assert controller.state == gc.STATE_EXTERNE
     client.get("/externe/retour?message=quit")
     assert _wait(lambda: controller.state == gc.STATE_MENU)
+
+
+def test_login_counter_is_per_launch():
+    """v1.31 : chaque lancement a son propre identifiant -- un compteur de
+    tentatives reste d'un lancement precedent (onglet jamais ferme) ne bloque
+    plus la connexion."""
+    from managers.browser_driver import page_script
+
+    first = page_script("compet", "compet", True, "http://127.0.0.1:5000")
+    second = page_script("compet", "compet", True, "http://127.0.0.1:5000")
+    assert '"session": "' in first and first != second
+    assert 'sessionStorage.getItem("maletaLoginSession") !== CFG.session' in first
+
+
+def test_check_aprene_messages(monkeypatch):
+    import socket
+    import urllib.error
+    from managers import hidden_games
+
+    def unreachable(*args, **kwargs):
+        raise urllib.error.URLError(socket.gaierror(-2, "Name or service not known"))
+
+    monkeypatch.setattr(hidden_games.urllib.request, "urlopen", unreachable)
+    assert hidden_games.check_aprene("https://aprene.example/competicion")[0] == "internet"
+
+    def refused(*args, **kwargs):
+        raise urllib.error.URLError(ConnectionRefusedError(111, "Connection refused"))
+
+    monkeypatch.setattr(hidden_games.urllib.request, "urlopen", refused)
+    assert hidden_games.check_aprene("https://aprene.example/competicion")[0] == "aprene"

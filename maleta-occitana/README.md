@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.3** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.31** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -406,6 +406,19 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.31** (19/11/2026) — **aprene : la connexion automatique échouait**
+  (signalé par Fabien, identifiants pourtant bons). Le script ajouté sur les
+  pages d'aprene comptait ses tentatives de connexion dans la mémoire de
+  l'onglet du navigateur ; l'onglet de la borne n'étant jamais fermé, une
+  seule tentative ratée (mot de passe corrigé depuis, coupure…) bloquait le
+  compteur et **chaque lancement suivant affichait « connexion refusée »**
+  jusqu'au redémarrage de la borne. Chaque lancement a maintenant son propre
+  compteur. Au passage, la vérification d'accès à aprene n'interroge plus le
+  DNS à part : derrière un proxy (réseau d'école), elle annonçait à tort
+  « pas de connexion internet ». Vérifié de bout en bout contre le vrai
+  aprene.appsdoc.fr (connexion, compétition, manette, double Échap).
+  Mise à jour : `sudo bash install.sh`, puis `sudo reboot` (vide aussi le
+  compteur resté bloqué).
 - **v1.3** (19/11/2026) — **jeux cachés** (« Jòcs amagats »), demandés par
   Fabien : des jeux absents du menu des visiteurs, lancés uniquement depuis
   **Admin > Jòcs amagats** (sur la borne, ou depuis un PC par le tunnel SSH).

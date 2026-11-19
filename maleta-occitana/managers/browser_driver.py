@@ -23,6 +23,7 @@ par une seule fonction, window.__maletaSend(message).
 import itertools
 import json
 import logging
+import secrets
 import threading
 import urllib.request
 
@@ -57,6 +58,13 @@ PAGE_SCRIPT = r"""
     }
     const form = document.querySelector('form[action="/connexion"]');
     if (!form || !CFG.login) return;
+    // Compteur propre a CE lancement : l'onglet de la borne n'est jamais
+    // ferme, un compteur reste d'un lancement precedent (ex. mauvais mot de
+    // passe corrige depuis) bloquait sinon toutes les connexions suivantes.
+    if (sessionStorage.getItem("maletaLoginSession") !== CFG.session) {
+      sessionStorage.setItem("maletaLoginSession", CFG.session);
+      sessionStorage.removeItem("maletaLoginTries");
+    }
     const tries = Number(sessionStorage.getItem("maletaLoginTries") || 0);
     if (tries >= 2) { send("login_failed"); return; }
     sessionStorage.setItem("maletaLoginTries", String(tries + 1));
@@ -156,7 +164,8 @@ def page_script(login, password, gamepad, home_url):
     tronque les scripts non ASCII, il compte leur longueur en caracteres et
     non en octets)."""
     config = json.dumps({"login": login or "", "password": password or "", "gamepad": bool(gamepad),
-                         "home": home_url if home_url.endswith("/") else home_url + "/"})
+                         "home": home_url if home_url.endswith("/") else home_url + "/",
+                         "session": secrets.token_hex(8)})
     return _ascii_js(PAGE_SCRIPT.replace("__MALETA_CONFIG__", config))
 
 

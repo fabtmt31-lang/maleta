@@ -19,7 +19,7 @@ et se met à jour exactement comme les précédentes, sans perdre le contenu
 déjà saisi :
 
 ```bash
-unzip -o maleta-occitana-v1.3.zip -d ~
+unzip -o maleta-occitana-v1.31.zip -d ~
 cd ~/maleta-occitana
 sudo bash install.sh
 ```
