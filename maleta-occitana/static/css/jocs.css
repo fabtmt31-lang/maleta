@@ -1,6 +1,19 @@
 /* v1.3 : centre de jòcs (jeu cache) -- complements aux styles de la borne. */
 .jocs-page { margin-left: auto; font-weight: 700; font-size: 18px; opacity: .7; }
 .tile-jocs .tile-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+/* v1.33 : tuile avec jaquette -- l'image occupe le haut de la tuile (entiere,
+   sans rognage : les jaquettes sont en portrait ou en paysage selon la console). */
+.tile-jocs.has-cover { padding-top: 16px; gap: 10px; }
+.tile-jocs.has-cover .tile-icon {
+  position: relative; flex: 1 1 0; width: auto; height: auto; min-height: 0; margin-right: 56px;
+  background: transparent; border-radius: 0;
+}
+.tile-jocs.has-cover .tile-icon img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; object-position: left center; border-radius: 0;
+  filter: drop-shadow(3px 3px 0 rgba(28, 18, 16, .85));
+}
+.tile-jocs.has-cover .tile-text { flex: 0 0 auto; }
 .tile-jocs.page-hidden { display: none; }
 
 /* Partie : l'image du jeu occupe l'ecran, fond noir. */

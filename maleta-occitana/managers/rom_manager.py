@@ -16,18 +16,43 @@ from managers import settings_manager
 from managers.upload_utils import safe_upload_name
 
 SYSTEMS = {
-    "nes": {"label": "NES", "core": "fceumm", "extensions": {"nes"}, "max_bytes": 1024 * 1024},
+    "nes": {"label": "NES", "core": "fceumm", "extensions": {"nes"}, "max_bytes": 1024 * 1024,
+            "libretro": "Nintendo - Nintendo Entertainment System"},
+    "snes": {"label": "Super NES", "core": "snes9x", "extensions": {"sfc", "smc"}, "max_bytes": 8 * 1024 * 1024,
+             "libretro": "Nintendo - Super Nintendo Entertainment System"},
     "md": {"label": "Mega Drive", "core": "genesis_plus_gx", "extensions": {"md", "gen", "bin", "smd"},
-           "max_bytes": 8 * 1024 * 1024},
+           "max_bytes": 8 * 1024 * 1024, "libretro": "Sega - Mega Drive - Genesis"},
+    "a26": {"label": "Atari 2600", "core": "stella2014", "extensions": {"a26", "bin"}, "max_bytes": 512 * 1024,
+            "libretro": "Atari - 2600"},
 }
+# v1.33 : l'extension .bin sert a la fois a l'Atari 2600 et a la Mega Drive.
+# Les jeux Atari 2600 font au plus quelques dizaines de Ko, les jeux Mega
+# Drive au moins 128 Ko : en dessous de ce seuil, un .bin est un jeu Atari
+# 2600 (la console reste modifiable dans la bibliotheque).
+A26_BIN_MAX_BYTES = 64 * 1024
 COVER_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+FORMATS_HELP = "NES : .nes ; Super NES : .sfc .smc ; Mega Drive : .md .gen .bin .smd ; Atari 2600 : .a26 .bin"
 
 
-def system_for_extension(ext):
+def system_for_extension(ext, size=None):
+    if ext == "bin":
+        return "a26" if size is not None and size <= A26_BIN_MAX_BYTES else "md"
     for key, system in SYSTEMS.items():
         if ext in system["extensions"]:
             return key
     return None
+
+
+def clean_title(filename):
+    """Titre affiche tire du nom du fichier : "Super_Mario_Bros._3_(USA).nes"
+    -> "Super Mario Bros. 3". Les mentions entre parentheses ou crochets
+    (pays, version) sont retirees ; les points du titre sont gardes."""
+    import re
+    stem = os.path.splitext(os.path.basename((filename or "").replace("\\", "/")))[0]
+    stem = stem.replace("_", " ")
+    title = re.sub(r"\s*[\(\[][^\)\]]*[\)\]]", "", stem)
+    title = re.sub(r"\s+", " ", title).strip(" -")
+    return title or re.sub(r"\s+", " ", stem).strip() or "Jòc"
 
 
 # --- Bibliotheque ----------------------------------------------------------------
@@ -44,7 +69,7 @@ def get_rom(rom_id):
 
 
 def counts():
-    """{"nes": n, "md": n} des jeux actifs."""
+    """{"nes": n, "snes": n, "md": n, "a26": n} des jeux actifs."""
     rows = get_db().execute("SELECT system, COUNT(*) AS n FROM roms WHERE active = 1 GROUP BY system").fetchall()
     result = {key: 0 for key in SYSTEMS}
     result.update({row["system"]: row["n"] for row in rows})
@@ -53,24 +78,24 @@ def counts():
 
 def add_rom_upload(file_storage):
     """Enregistre un fichier de jeu envoye depuis l'admin. Console reconnue a
-    l'extension, taille limitee. Renvoie l'id du jeu cree ; leve ValueError
-    (message affichable) si le fichier est refuse."""
+    l'extension (et a la taille pour .bin), taille limitee. Renvoie l'id du
+    jeu cree ; leve ValueError (message affichable) si le fichier est refuse."""
     name, ext = safe_upload_name(file_storage.filename)
-    system = system_for_extension(ext)
-    if system is None:
-        raise ValueError(f"{file_storage.filename} : format non reconnu (NES : .nes ; Mega Drive : .md .gen .bin .smd)")
-    data = file_storage.read(SYSTEMS[system]["max_bytes"] + 1)
+    if system_for_extension(ext) is None:
+        raise ValueError(f"{file_storage.filename} : format non reconnu ({FORMATS_HELP})")
+    data = file_storage.read(max(s["max_bytes"] for s in SYSTEMS.values()) + 1)
+    system = system_for_extension(ext, len(data))
     if len(data) > SYSTEMS[system]["max_bytes"]:
-        limit = SYSTEMS[system]["max_bytes"] // (1024 * 1024)
-        raise ValueError(f"{file_storage.filename} : fichier trop gros pour un jeu {SYSTEMS[system]['label']} (≤ {limit} Mo)")
+        limit = SYSTEMS[system]["max_bytes"] / (1024 * 1024)
+        limit = f"{limit:g} Mo" if limit >= 1 else f"{SYSTEMS[system]['max_bytes'] // 1024} Ko"
+        raise ValueError(f"{file_storage.filename} : fichier trop gros pour un jeu {SYSTEMS[system]['label']} (≤ {limit})")
     if not data:
         raise ValueError(f"{file_storage.filename} : fichier vide")
     os.makedirs(config.ROMS_DIR, exist_ok=True)
     filename = f"{os.urandom(4).hex()}_{name}"
     with open(os.path.join(config.ROMS_DIR, filename), "wb") as f:
         f.write(data)
-    title = os.path.splitext(os.path.basename(file_storage.filename.replace("\\", "/")))[0]
-    title = title.replace("_", " ").replace(".", " ").strip() or name
+    title = clean_title(file_storage.filename)
     db = get_db()
     max_order = db.execute("SELECT MAX(sort_order) AS m FROM roms").fetchone()["m"] or 0
     cur = db.execute(
@@ -79,6 +104,20 @@ def add_rom_upload(file_storage):
     )
     db.commit()
     return cur.lastrowid
+
+
+def set_cover(rom_id, cover_filename):
+    """Associe une jaquette deja enregistree (save_cover / recherche
+    automatique) a un jeu, en supprimant l'ancienne."""
+    rom = get_rom(rom_id)
+    if rom is None:
+        _remove(config.ROM_COVERS_DIR, cover_filename)
+        return
+    if rom["cover_filename"] and rom["cover_filename"] != cover_filename:
+        _remove(config.ROM_COVERS_DIR, rom["cover_filename"])
+    db = get_db()
+    db.execute("UPDATE roms SET cover_filename = ? WHERE id = ?", (cover_filename, rom_id))
+    db.commit()
 
 
 def save_cover(file_storage):
@@ -91,10 +130,40 @@ def save_cover(file_storage):
     return filename
 
 
-def update_rom(rom_id, title, players, active, cover_filename=None, clear_cover=False):
+def save_cover_bytes(data, ext):
+    os.makedirs(config.ROM_COVERS_DIR, exist_ok=True)
+    filename = f"{os.urandom(4).hex()}_jaquette.{ext}"
+    with open(os.path.join(config.ROM_COVERS_DIR, filename), "wb") as f:
+        f.write(data)
+    return filename
+
+
+def is_cover_file(filename):
+    return safe_upload_name(filename)[1] in COVER_EXTENSIONS
+
+
+def match_cover_upload(file_storage, rom_ids):
+    """v1.33 : image envoyee avec les jeux, nommee comme l'un d'eux
+    ("Sonic.md" + "Sonic.png") -> jaquette de ce jeu. Cherche parmi rom_ids
+    (jeux envoyes en meme temps) puis parmi tous les jeux sans jaquette.
+    Renvoie le titre du jeu, ou None si aucun ne correspond."""
+    from managers.cover_lookup import normalize
+    wanted = normalize(clean_title(file_storage.filename))
+    roms = list_roms()
+    candidates = [r for r in roms if r["id"] in rom_ids] + [r for r in roms if r["id"] not in rom_ids and not r["cover_filename"]]
+    for rom in candidates:
+        if wanted and normalize(rom["title"]) == wanted:
+            set_cover(rom["id"], save_cover(file_storage))
+            return rom["title"]
+    return None
+
+
+def update_rom(rom_id, title, players, active, cover_filename=None, clear_cover=False, system=None):
     rom = get_rom(rom_id)
     if rom is None:
         raise ValueError("Jeu introuvable")
+    if system and system not in SYSTEMS:
+        raise ValueError("Console inconnue")
     cover = rom["cover_filename"]
     if cover_filename:
         _remove(config.ROM_COVERS_DIR, cover)
@@ -104,8 +173,9 @@ def update_rom(rom_id, title, players, active, cover_filename=None, clear_cover=
         cover = None
     db = get_db()
     db.execute(
-        "UPDATE roms SET title = ?, players = ?, active = ?, cover_filename = ? WHERE id = ?",
-        ((title or "").strip() or rom["title"], (players or "").strip() or None, 1 if active else 0, cover, rom_id),
+        "UPDATE roms SET title = ?, players = ?, active = ?, cover_filename = ?, system = ? WHERE id = ?",
+        ((title or "").strip() or rom["title"], (players or "").strip() or None, 1 if active else 0, cover,
+         system or rom["system"], rom_id),
     )
     db.commit()
 
@@ -151,10 +221,19 @@ BUTTONS = {
         ("up", "Haut", 4), ("down", "Bas", 5), ("left", "Gauche", 6), ("right", "Droite", 7),
         ("a", "A", 8), ("b", "B", 0), ("select", "Select", 2), ("start", "Start", 3),
     ],
+    "snes": [
+        ("up", "Haut", 4), ("down", "Bas", 5), ("left", "Gauche", 6), ("right", "Droite", 7),
+        ("a", "A", 8), ("b", "B", 0), ("x", "X", 9), ("y", "Y", 1),
+        ("l", "L", 10), ("r", "R", 11), ("select", "Select", 2), ("start", "Start", 3),
+    ],
     "md": [
         ("up", "Haut", 4), ("down", "Bas", 5), ("left", "Gauche", 6), ("right", "Droite", 7),
         ("a", "A", 1), ("b", "B", 0), ("c", "C", 8), ("start", "Start", 3),
         ("x", "X", 10), ("y", "Y", 9), ("z", "Z", 11), ("mode", "Mode", 2),
+    ],
+    "a26": [
+        ("up", "Haut", 4), ("down", "Bas", 5), ("left", "Gauche", 6), ("right", "Droite", 7),
+        ("fire", "Tir (Fire)", 0), ("select", "Select", 2), ("reset", "Reset (démarrer)", 3),
     ],
 }
 SIX_BUTTONS = {"x", "y", "z", "mode"}  # Mega Drive 6 boutons seulement
@@ -233,6 +312,18 @@ def get_diagnostic():
 
 def set_diagnostic(enabled):
     settings_manager._set(KEY_DIAGNOSTIC, "1" if enabled else "0")
+
+
+KEY_COVERS_AUTO = "jocs_covers_auto"
+
+
+def get_covers_auto():
+    """v1.33 : recherche automatique de la jaquette a l'ajout d'un jeu."""
+    return settings_manager._get(KEY_COVERS_AUTO, "1") == "1"
+
+
+def set_covers_auto(enabled):
+    settings_manager._set(KEY_COVERS_AUTO, "1" if enabled else "0")
 
 
 def get_six_buttons():

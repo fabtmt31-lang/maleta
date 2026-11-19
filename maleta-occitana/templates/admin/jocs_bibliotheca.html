@@ -11,11 +11,40 @@
 
 <form method="post" enctype="multipart/form-data" class="object-form" style="max-width:none;margin-bottom:20px">
   <label>Ajouter des jeux (plusieurs fichiers possibles)
-    <input type="file" name="files" multiple accept=".nes,.md,.gen,.bin,.smd" required></label>
-  <p class="muted" style="margin:0">NES <code>.nes</code> (≤ 1 Mo) · Mega Drive <code>.md .gen .bin .smd</code> (≤ 8 Mo) —
-    la console est reconnue à l'extension.</p>
+    <input type="file" name="files" multiple accept=".nes,.sfc,.smc,.md,.gen,.bin,.smd,.a26,.png,.jpg,.jpeg,.webp" required></label>
+  <p class="muted" style="margin:0">NES <code>.nes</code> (≤ 1 Mo) · Super NES <code>.sfc .smc</code> (≤ 8 Mo) ·
+    Mega Drive <code>.md .gen .bin .smd</code> (≤ 8 Mo) · Atari 2600 <code>.a26 .bin</code> (≤ 512 Ko) —
+    la console est reconnue à l'extension (un <code>.bin</code> de 64 Ko au plus est un jeu Atari 2600 ; la console reste
+    modifiable ci-dessous). Jaquette : joindre une image <code>.png .jpg .webp</code> du même nom que le jeu
+    (ex. <code>Sonic.md</code> + <code>Sonic.png</code>), ou laisser la recherche automatique.</p>
   <div class="form-actions"><button type="submit" class="button">+ Ajouter</button></div>
 </form>
+
+<!-- v1.33 : jaquettes automatiques (managers/cover_lookup.py) -->
+<div class="object-form" style="max-width:none;margin-bottom:20px">
+  <strong>Jaquettes automatiques</strong>
+  <p class="muted" style="margin:0">Cherchées sur Internet dans la base libre de vignettes de libretro (thumbnails.libretro.com),
+    d'après le titre du jeu : la borne doit être connectée (<a href="{{ url_for('admin.wifi') }}">Wi-Fi</a>). Si la jaquette
+    trouvée n'est pas la bonne, corriger le titre (ex. « Super Mario Bros. 3 »), cocher « retirer » puis relancer la recherche.</p>
+  {%- if cover_search %}
+  <div class="flash" style="margin:0">
+    {%- if cover_search.running %}Recherche en cours… (recharger la page)
+    {%- else %}
+      {%- if cover_search.error %}Recherche interrompue : {{ cover_search.error }}.{% endif %}
+      {{ cover_search.found|length }} jaquette(s) trouvée(s){% if cover_search.found %} ({{ cover_search.found|join(', ') }}){% endif %}.
+      {%- if cover_search.missing %} Introuvable(s) : {{ cover_search.missing|join(', ') }}.{% endif %}
+    {%- endif %}
+  </div>
+  {%- endif %}
+  <div class="form-actions" style="align-items:center;gap:16px">
+    <form method="post" action="{{ url_for('admin.jocs_library_covers') }}" style="display:inline">
+      <button type="submit" class="button btn-secondary">Chercher les jaquettes manquantes</button></form>
+    <form method="post" action="{{ url_for('admin.jocs_library_covers') }}" style="display:inline">
+      <input type="hidden" name="covers_auto" value="{{ '0' if covers_auto else '1' }}">
+      <label class="checkbox-label"><input type="checkbox" {{ 'checked' if covers_auto }} onchange="this.form.submit()">
+        chercher automatiquement à l'ajout d'un jeu</label></form>
+  </div>
+</div>
 
 <table class="admin-table">
   <thead><tr><th style="width:84px">Jaquette</th><th>Titre · joueurs</th><th>Console</th><th>Actif</th><th></th></tr></thead>
@@ -36,7 +65,9 @@
         <input class="input" type="text" name="title" value="{{ rom.title }}" form="rom-{{ rom.id }}" style="width:100%;font-weight:700">
         <input class="input" type="text" name="players" value="{{ rom.players or '' }}" placeholder="joueurs (ex. 1-2)" form="rom-{{ rom.id }}" style="width:140px;margin-top:6px">
       </td>
-      <td><span class="tag {{ 'tag-accent' if rom.system == 'nes' else 'tag-neutral' }}">{{ systems[rom.system].label if rom.system in systems else rom.system }}</span></td>
+      <td><select class="input" name="system" form="rom-{{ rom.id }}" style="width:auto">
+        {%- for key, sys in systems.items() %}<option value="{{ key }}" {{ 'selected' if rom.system == key }}>{{ sys.label }}</option>{% endfor %}
+      </select></td>
       <td><label class="checkbox-label"><input type="checkbox" name="active" value="1" form="rom-{{ rom.id }}" {{ 'checked' if rom.active }}> actiu</label></td>
       <td class="row-actions">
         <button type="submit" class="button btn-secondary" form="rom-{{ rom.id }}">Enregistrer</button>

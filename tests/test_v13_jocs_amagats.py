@@ -173,13 +173,14 @@ def test_jocs_pages_only_while_running(tmp_path):
 
 def test_library_upload_rules(tmp_path):
     app, client, rom_id, rom_manager = _with_rom(tmp_path)
+    app.extensions["cover_search"].http_get = _offline
     page = client.post("/admin/jocs/bibliotheca", data={"files": [
-        (io.BytesIO(b"x"), "photo.jpg"), (io.BytesIO(bytes(1024 * 1024 + 1)), "gros.nes"),
+        (io.BytesIO(b"x"), "notes.txt"), (io.BytesIO(bytes(1024 * 1024 + 1)), "gros.nes"),
         (io.BytesIO(bytes(2000)), "sonic.md"),
     ]}, content_type="multipart/form-data", follow_redirects=True).get_data(as_text=True)
     assert "1 jeu(x) ajouté(s)" in page and "format non reconnu" in page and "trop gros" in page
     with app.app_context():
-        assert rom_manager.counts() == {"nes": 1, "md": 1}
+        assert rom_manager.counts() == {"nes": 1, "snes": 0, "md": 1, "a26": 0}
         files_before = set(os.listdir(tmp_path / "pc" / "media" / "roms"))
         rom_manager.delete_rom(rom_id)
         assert len(set(os.listdir(tmp_path / "pc" / "media" / "roms"))) == len(files_before) - 1
@@ -333,3 +334,108 @@ def test_diagnostic_option(tmp_path):
     client.post("/admin/jocs/diagnostic", data={})
     assert "jocsDiagnostic()" not in client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
     app.extensions["game_controller"].stop_external()
+
+
+# --- v1.33 : emulateur sans mode debug, Super NES / Atari 2600, jaquettes ---------
+
+def _offline(url, max_bytes):
+    from managers.cover_lookup import CoverError
+    raise CoverError("pas d'accès à Internet (vérifier le Wi-Fi dans l'admin)")
+
+
+def test_emulator_without_debug_mode(tmp_path):
+    app, client, rom_id, _ = _with_rom(tmp_path)
+    _, hg = _mods()
+    hg.start_jocs(app)
+    play = client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
+    assert "EJS_DEBUG_XX =" not in play  # mode debug = emulateur verbeux et ralenti
+    data = os.path.join(os.path.dirname(__file__), "..", "maleta-occitana", "static", "vendor", "emulatorjs", "data")
+    for name in ("emulator.min.js", "emulator.min.css", "cores/snes9x-wasm.data", "cores/stella2014-wasm.data"):
+        assert os.path.getsize(os.path.join(data, name)) > 10000, name
+    app.extensions["game_controller"].stop_external()
+
+
+def test_snes_and_atari_2600(tmp_path):
+    app, client, rom_id, rom_manager = _with_rom(tmp_path)
+    app.extensions["cover_search"].http_get = _offline
+    client.post("/admin/jocs/bibliotheca", data={"files": [
+        (io.BytesIO(bytes(4096)), "Pitfall!.bin"), (io.BytesIO(bytes(256 * 1024)), "Sonic_(Europe).bin"),
+        (io.BytesIO(bytes(512 * 1024)), "Super_Mario_World_(France).sfc"), (io.BytesIO(bytes(4096)), "Combat.a26"),
+    ]}, content_type="multipart/form-data")
+    with app.app_context():
+        roms = {r["title"]: r for r in rom_manager.list_roms()}
+        assert {t: r["system"] for t, r in roms.items()} == {
+            "Mon Jeu": "nes", "Pitfall!": "a26", "Sonic": "md", "Super Mario World": "snes", "Combat": "a26"}
+        assert rom_manager.emulatorjs_controls("a26")[0][0] == {"value": "x", "value2": "BUTTON_2"}
+        assert rom_manager.emulatorjs_controls("snes")[0][9]["value2"] == "BUTTON_3"
+    # Console modifiable (ex. .bin mal reconnu)
+    sonic = roms["Sonic"]["id"]
+    client.post(f"/admin/jocs/bibliotheca/{sonic}", data={"title": "Sonic", "players": "1", "active": "1", "system": "a26"})
+    with app.app_context():
+        assert rom_manager.get_rom(sonic)["system"] == "a26"
+    hg = _mods()[1]
+    hg.start_jocs(app)
+    assert 'EJS_core = "stella2014"' in client.get(f"/jocs/joc/{sonic}").get_data(as_text=True)
+    snes = roms["Super Mario World"]["id"]
+    assert 'EJS_core = "snes9x"' in client.get(f"/jocs/joc/{snes}").get_data(as_text=True)
+    app.extensions["game_controller"].stop_external()
+    page = client.get("/admin/jocs/maneta").get_data(as_text=True)
+    assert "Super NES" in page and "Atari 2600" in page and "Reset" in page
+
+
+def test_cover_matching():
+    from managers import cover_lookup as cl
+    from managers.rom_manager import clean_title
+    assert clean_title("Super_Mario_Bros._3_(USA)_[!].nes") == "Super Mario Bros. 3"
+    names = ["Super Mario Bros. 3 (USA)", "Super Mario Bros. 3 (Europe)", "Super Mario Bros. 3 (USA) (Beta)",
+             "Legend of Zelda, The (USA)", "Sonic The Hedgehog 2 (World)", "Pac-Man (Japan)"]
+    assert cl.best_match("Super Mario Bros. 3", names) == "Super Mario Bros. 3 (Europe)"
+    assert cl.best_match("The Legend of Zelda", names) == "Legend of Zelda, The (USA)"
+    assert cl.best_match("Sonic the Hedgehog 2", names) == "Sonic The Hedgehog 2 (World)"
+    assert cl.best_match("PacMan", names) == cl.best_match("Pac Man", names) == "Pac-Man (Japan)"
+    assert cl.best_match("Tetris", names) is None
+    page = ('<a href="?C=N;O=D">Name</a><a href="/Nintendo/">Parent</a>'
+            '<a href="Super%20Mario%20Bros.%203%20%28USA%29.png">x</a><a href="Kirby%27s%20Adventure%20(USA).png">y</a>')
+    assert cl.parse_index(page) == ["Super Mario Bros. 3 (USA)", "Kirby's Adventure (USA)"]
+
+
+def test_cover_search_and_companion_images(tmp_path):
+    app, client, rom_id, rom_manager = _with_rom(tmp_path)
+    png = b"\x89PNG\r\n\x1a\n" + bytes(100)
+    calls = []
+
+    def fake_get(url, max_bytes):
+        calls.append(url)
+        if url.endswith("/Named_Boxarts/"):
+            return b'<a href="Mon%20Jeu%20(France).png">a</a><a href="Autre%20Jeu%20(USA).png">b</a>'
+        return png
+
+    search = app.extensions["cover_search"]
+    search.http_get = fake_get
+    # Image jointe du meme nom que le jeu -> jaquette ; sinon refusee.
+    page = client.post("/admin/jocs/bibliotheca", data={"files": [
+        (io.BytesIO(NES_ROM), "Autre_Jeu.nes"), (io.BytesIO(png), "Autre Jeu.png"), (io.BytesIO(png), "Inconnu.png"),
+    ]}, content_type="multipart/form-data", follow_redirects=True).get_data(as_text=True)
+    assert "1 jaquette(s) associée(s)" in page and "Inconnu.png : aucun jeu du même nom" in page
+    search.wait(5)
+    assert not any("Autre" in url for url in calls)  # deja une jaquette : pas de recherche
+    # Recherche des jaquettes manquantes
+    client.post("/admin/jocs/bibliotheca/jaquettes")
+    search.wait(5)
+    assert search.status() == {"running": False, "found": ["Mon Jeu"], "missing": [], "error": None}
+    assert calls[-1].endswith("/Named_Boxarts/Mon%20Jeu%20%28France%29.png")
+    with app.app_context():
+        assert all(r["cover_filename"] for r in rom_manager.list_roms())
+    _mods()[1].start_jocs(app)
+    centre = client.get("/jocs/").get_data(as_text=True)
+    assert centre.count("has-cover") == 2 and "/jocs/jaquette/" in centre
+    app.extensions["game_controller"].stop_external()
+    # Sans reseau : message clair, rien de casse.
+    with app.app_context():
+        rom_manager.update_rom(rom_id, "Mon Jeu", "1", True, clear_cover=True)
+    search.http_get = _offline
+    os.remove(os.path.join(str(tmp_path / "pc"), "media", "roms", ".index-jaquettes", "libretro-nes.txt"))
+    client.post("/admin/jocs/bibliotheca/jaquettes")
+    search.wait(5)
+    assert "Internet" in search.status()["error"]
+    assert "Internet" in client.get("/admin/jocs/bibliotheca").get_data(as_text=True)

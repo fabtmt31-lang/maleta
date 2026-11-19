@@ -158,6 +158,9 @@ def create_app():
     # v1.3 : reglage de la manette du centre de jòcs (voir rom_manager.PadCapture)
     from managers.rom_manager import PadCapture
     app.extensions["pad_capture"] = PadCapture(app)
+    # v1.33 : jaquettes automatiques (voir managers/cover_lookup.py)
+    from managers.cover_lookup import CoverSearch
+    app.extensions["cover_search"] = CoverSearch(app)
 
     from blueprints.kiosk import kiosk_bp
     from blueprints.admin import admin_bp

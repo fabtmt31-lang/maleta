@@ -1276,7 +1276,7 @@ def transfer_import():
 
 # --- Jòcs amagats (v1.3) ------------------------------------------------------
 # Jeux absents du menu des visiteurs, lances uniquement d'ici : competition
-# aprene et centre de jòcs (emulateur NES / Mega Drive, borne seulement).
+# aprene et centre de jòcs (emulateur NES / Super NES / Mega Drive / Atari 2600, borne seulement).
 # Voir managers/hidden_games.py et docs/cahier-des-charges-jocs-amagats.md.
 
 @admin_bp.route("/jocs")
@@ -1353,19 +1353,53 @@ def jocs_library():
         return redirect(url_for("admin.jocs"))
     if request.method == "POST":
         files = [f for f in request.files.getlist("files") if f and f.filename]
-        added, refused = 0, []
+        images = [f for f in files if rom_manager.is_cover_file(f.filename)]
+        added_ids, refused = [], []
         for file_storage in files:
+            if any(file_storage is image for image in images):
+                continue
             try:
-                rom_manager.add_rom_upload(file_storage)
-                added += 1
+                added_ids.append(rom_manager.add_rom_upload(file_storage))
             except ValueError as exc:
                 refused.append(str(exc))
-        message = f"{added} jeu(x) ajouté(s)." if added else "Aucun jeu ajouté."
+        # v1.33 : jaquettes envoyees avec les jeux (meme nom de fichier).
+        covers = 0
+        for image in images:
+            try:
+                if rom_manager.match_cover_upload(image, added_ids):
+                    covers += 1
+                else:
+                    refused.append(f"{image.filename} : aucun jeu du même nom pour cette jaquette")
+            except ValueError as exc:
+                refused.append(f"{image.filename} : {exc}")
+        message = f"{len(added_ids)} jeu(x) ajouté(s)." if added_ids else "Aucun jeu ajouté."
+        if covers:
+            message += f" {covers} jaquette(s) associée(s)."
         if refused:
             message += " Refusé(s) : " + " ; ".join(refused)
+        if added_ids and rom_manager.get_covers_auto():
+            current_app.extensions["cover_search"].start(added_ids)
         flash(message)
         return redirect(url_for("admin.jocs_library"))
-    return render_template("admin/jocs_bibliotheca.html", roms=rom_manager.list_roms(), systems=rom_manager.SYSTEMS)
+    return render_template("admin/jocs_bibliotheca.html", roms=rom_manager.list_roms(), systems=rom_manager.SYSTEMS,
+                           cover_search=current_app.extensions["cover_search"].status(),
+                           covers_auto=rom_manager.get_covers_auto())
+
+
+@admin_bp.route("/jocs/bibliotheca/jaquettes", methods=["POST"])
+@login_required
+def jocs_library_covers():
+    """v1.33 : recherche des jaquettes manquantes sur Internet."""
+    if config.DEMO_MODE:
+        return redirect(url_for("admin.jocs"))
+    if "covers_auto" in request.form:
+        rom_manager.set_covers_auto(request.form.get("covers_auto") == "1")
+        flash("Réglage enregistré")
+    elif current_app.extensions["cover_search"].start():
+        flash("Recherche des jaquettes lancée (quelques secondes, rechargez la page).")
+    else:
+        flash("Une recherche est déjà en cours.")
+    return redirect(url_for("admin.jocs_library"))
 
 
 @admin_bp.route("/jocs/bibliotheca/<int:rom_id>", methods=["POST"])
@@ -1379,6 +1413,7 @@ def jocs_library_edit(rom_id):
             rom_id, request.form.get("title"), request.form.get("players"),
             bool(request.form.get("active")), cover_filename=cover,
             clear_cover=bool(request.form.get("remove_cover")),
+            system=request.form.get("system") or None,
         )
         flash("Jeu enregistré")
     except ValueError as exc:

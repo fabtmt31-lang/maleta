@@ -10,7 +10,7 @@ Ajouter à la Maleta des **jeux absents du menu des visiteurs**, lancés uniquem
 
 1. **aprene** — la compétition en ligne d'aprene (`https://aprene.appsdoc.fr/competicion`), pour animer un stand
    avec des jeux occitans plus poussés. Borne **et** version démo.
-2. **Centre de jòcs** — un petit centre d'émulation **NES et Mega Drive**, avec sa bibliothèque de jeux et son
+2. **Centre de jòcs** — un petit centre d'émulation **NES, Super NES, Mega Drive et Atari 2600** (Super NES et Atari 2600 depuis la v1.33), avec sa bibliothèque de jeux et son
    réglage de manette. Borne uniquement.
 
 Pour que la borne puisse joindre aprene : **réglages Wi-Fi dans l'admin** (borne uniquement).
@@ -244,3 +244,18 @@ Maquette : `admin-2-wifi.png`.
 - **À vérifier sur le matériel réel** : Wi-Fi (NetworkManager), fluidité de la
   Mega Drive sur le petit PC, manettes USB (y compris le réglage à distance),
   compétition aprene en ligne, démo aprene sous Windows (WebView2).
+
+## 13. Évolutions v1.33
+
+- **Fluidité** : la page de jeu n'utilise plus le mode « debug » d'EmulatorJS,
+  qui rendait l'émulateur verbeux et faisait chuter le jeu de 60 à ~45 images/s
+  après quelques secondes (NES et Mega Drive, carte Intel HD 530 pourtant bien
+  utilisée). `emulator.min.js` est assemblé par `packaging/fetch_emulatorjs.sh`.
+- **Super NES** (Snes9x, `.sfc .smc`, ≤ 8 Mo) et **Atari 2600** (Stella 2014,
+  `.a26 .bin`, ≤ 512 Ko). `.bin` ≤ 64 Ko → Atari 2600, sinon Mega Drive ;
+  console modifiable dans la bibliothèque.
+- **Jaquettes** : affichées en grand dans les tuiles ; recherche automatique
+  dans la base libre de vignettes de libretro (thumbnails.libretro.com,
+  noms « No-Intro », version France > Europe > Monde > USA), à l'ajout d'un jeu
+  ou par bouton ; image jointe du même nom que le jeu ; ajout manuel.
+  Code : `managers/cover_lookup.py`.

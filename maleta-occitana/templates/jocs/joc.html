@@ -32,7 +32,9 @@
   window.EJS_gameUrl = {{ rom_url | tojson }};
   window.EJS_gameName = {{ rom.title | tojson }};
   window.EJS_pathtodata = {{ url_for('static', filename='vendor/emulatorjs/data/') | tojson }};
-  window.EJS_DEBUG_XX = true;           // scripts non minifies (seuls fournis par npm)
+  // v1.33 : plus de mode debug (EJS_DEBUG_XX) : il rendait l'emulateur
+  // verbeux et le jeu ralentissait (60 -> 45 images/s). emulator.min.js est
+  // assemble par packaging/fetch_emulatorjs.sh.
   window.EJS_disableAutoLang = false;   // interface d'EmulatorJS non affichee : pas de traduction a charger
   window.EJS_startOnLoaded = true;
   window.EJS_disableDatabases = true;

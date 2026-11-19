@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.32** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.33** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -406,6 +406,32 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.33** (19/11/2026) — centre de jòcs, retours de Fabien après la v1.32.
+  1. **Jeu qui ralentit (60 → 45 images/s, NES comme Mega Drive)** : cause
+     trouvée. La page de jeu chargeait EmulatorJS en mode « debug » (seuls
+     ses scripts non minifiés sont publiés) ; ce mode lance l'émulateur en
+     mode verbeux et écrit dans la console du navigateur à chaque
+     évènement : le jeu ralentit au bout de quelques secondes. Le mode debug
+     est retiré ; `packaging/fetch_emulatorjs.sh` assemble lui-même
+     `emulator.min.js`. Vérifié : 0 message console pendant la partie
+     (contre plusieurs par seconde avant).
+  2. **Super NES et Atari 2600** ajoutées (moteurs Snes9x et Stella 2014,
+     servis en local comme les autres). Fichiers `.sfc .smc` (Super NES),
+     `.a26` ou `.bin` (Atari 2600). Un `.bin` de 64 Ko au plus est reconnu
+     comme un jeu Atari 2600, plus gros comme un jeu Mega Drive ; la
+     **console est maintenant modifiable** dans la bibliothèque. Manette :
+     Super NES A B X Y L R Select Start ; Atari 2600 Tir, Select, Reset.
+  3. **Jaquettes** : elles s'affichent désormais en grand dans les tuiles du
+     centre (au lieu d'une vignette de 60 px). Trois façons de les avoir :
+     **recherche automatique sur Internet** à l'ajout d'un jeu (base libre de
+     vignettes de libretro, thumbnails.libretro.com, d'après le titre — la
+     borne doit être connectée au Wi-Fi), bouton « Chercher les jaquettes
+     manquantes », ou **image jointe** du même nom que le jeu
+     (`Sonic.md` + `Sonic.png`) ; l'ajout à la main reste possible. Le titre
+     du jeu tiré du nom de fichier garde ses points et perd les mentions de
+     pays (« Super_Mario_Bros._3_(USA).nes » → « Super Mario Bros. 3 »).
+  Mise à jour de la borne : copier les fichiers et `sudo bash install.sh`
+  comme d'habitude (pas de redémarrage nécessaire).
 - **v1.32** (19/11/2026) — retours de Fabien après la v1.31.
   1. **Plus de bouton de manette pour lancer le diaporama** : l'action
      « Lancer le diaporama (Start) » disparaît de Configuration > Manèta &

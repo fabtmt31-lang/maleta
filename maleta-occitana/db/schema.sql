@@ -147,7 +147,7 @@ CREATE INDEX IF NOT EXISTS idx_quiz_questions_sort_order ON quiz_questions(sort_
 CREATE TABLE IF NOT EXISTS roms (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     title           TEXT NOT NULL,
-    system          TEXT NOT NULL,              -- 'nes' ou 'md' (Mega Drive)
+    system          TEXT NOT NULL,              -- 'nes', 'snes', 'md' (Mega Drive), 'a26' (Atari 2600)
     filename        TEXT NOT NULL,              -- nom de fichier dans media/roms/
     cover_filename  TEXT,                       -- jaquette facultative, media/roms/covers/
     players         TEXT,                       -- texte libre affiche (ex. "1-2")

@@ -7,7 +7,7 @@ racine du depot.
 - aprene : la competition en ligne d'aprene. Le navigateur de la borne y
   est envoye puis ramene (managers/browser_driver.py) ; connexion
   automatique, double Echap pour quitter, manette convertie en navigation.
-- Centre de jòcs : emulateur NES / Mega Drive dans la page /jocs/ (borne
+- Centre de jòcs : emulateur NES / Super NES / Mega Drive / Atari 2600 dans la page /jocs/ (borne
   seulement, voir blueprints/jocs.py et managers/rom_manager.py).
 
 Pendant un jeu cache, la borne est dans l'etat STATE_EXTERNE du

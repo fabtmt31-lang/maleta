@@ -38,10 +38,14 @@ Absents du menu des visiteurs, ils se lancent uniquement depuis
   à saisir une fois dans cette page). Le maître du jeu règle la partie au
   clavier et à la souris ; les joueurs peuvent répondre à la manette.
   **Échap deux fois** pour revenir à la Maleta.
-- **Centre de jòcs** (borne) : émulateur NES et Mega Drive. Ajouter les
-  jeux dans *Bibliotèca* (fichiers `.nes`, `.md`, `.gen`, `.bin`, `.smd`,
-  fournis par l'école — la Maleta n'en livre aucun), régler la manette dans
-  *Manèta*, puis « Lancer le centre de jòcs ». **Échap** pour sortir.
+- **Centre de jòcs** (borne) : émulateur NES, Super NES, Mega Drive et
+  Atari 2600. Ajouter les jeux dans *Bibliotèca* (fichiers `.nes`, `.sfc`,
+  `.smc`, `.md`, `.gen`, `.bin`, `.smd`, `.a26`, fournis par l'école — la
+  Maleta n'en livre aucun), régler la manette dans *Manèta*, puis « Lancer
+  le centre de jòcs ». **Échap** pour sortir. Les **jaquettes** sont
+  cherchées automatiquement sur Internet (base libre de libretro, borne
+  connectée au Wi-Fi) ; on peut aussi joindre une image du même nom que le
+  jeu (`Sonic.md` + `Sonic.png`) ou en ajouter une à la main.
 - **Wi-Fi** (borne) : *Admin > Jòcs amagats > Réglages Wi-Fi*, pour qu'aprene
   soit joignable. Le reste de la borne fonctionne toujours sans réseau.
 
