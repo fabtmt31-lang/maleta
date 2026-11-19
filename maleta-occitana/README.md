@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.31** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.32** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -406,6 +406,21 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.32** (19/11/2026) — retours de Fabien après la v1.31.
+  1. **Plus de bouton de manette pour lancer le diaporama** : l'action
+     « Lancer le diaporama (Start) » disparaît de Configuration > Manèta &
+     clavièr (et du clavier de la démo) ; une ancienne assignation
+     enregistrée est ignorée. Le diaporama reste accessible par l'icône
+     « Cadre fotó » du menu.
+  2. **aprene, écran resté sur « Competicion aprene »** vu depuis un PC (tunnel
+     SSH) : c'est normal, aprene s'ouvre sur l'écran de la borne et cet écran
+     n'en est qu'un miroir. Il l'indique désormais (« aprene est ouvert sur
+     l'écran de la borne… ») et Échap y arrête aprene.
+  3. **Centre de jòcs, jeu saccadé / en retard** : nouvelle case
+     **Diagnostic** (Admin > Jòcs amagats) qui affiche pendant la partie les
+     images par seconde et la carte graphique utilisée par le navigateur — un
+     rendu logiciel (« SwiftShader », « llvmpipe ») en est la cause la plus
+     probable. À essayer sur la borne avant de choisir le correctif.
 - **v1.31** (19/11/2026) — **aprene : la connexion automatique échouait**
   (signalé par Fabien, identifiants pourtant bons). Le script ajouté sur les
   pages d'aprene comptait ses tentatives de connexion dans la mémoire de

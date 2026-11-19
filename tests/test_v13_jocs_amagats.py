@@ -301,3 +301,35 @@ def test_check_aprene_messages(monkeypatch):
 
     monkeypatch.setattr(hidden_games.urllib.request, "urlopen", refused)
     assert hidden_games.check_aprene("https://aprene.example/competicion")[0] == "aprene"
+
+
+def test_diaporama_no_longer_on_gamepad(tmp_path):
+    """v1.32 : plus d'action manette/clavier pour le diaporama ; l'icone du
+    menu reste."""
+    app, client = make_client(tmp_path / "pc", demo=False)
+    gc, _ = _mods()
+    from managers import settings_manager
+    controller = app.extensions["game_controller"]
+    sys.modules["config"].ACTION_LOCKOUT_SECONDS = 0
+    with app.app_context():
+        assert "start_idle" not in {a["action"] for a in settings_manager.GAMEPAD_ACTIONS}
+        settings_manager.set_gamepad_key_map({"p": ["start_idle", "select"]})  # ancien reglage
+        assert settings_manager.get_gamepad_key_map() == {"p": ["select"]}
+    controller.go_to_menu()
+    controller.on_action("start_idle")
+    assert controller.state == gc.STATE_MENU
+    client.post("/diaporama")
+    assert controller.state == gc.STATE_VEILLE
+    controller.go_to_menu()
+
+
+def test_diagnostic_option(tmp_path):
+    app, client, rom_id, rom_manager = _with_rom(tmp_path)
+    _, hg = _mods()
+    client.post("/admin/jocs/diagnostic", data={"diagnostic": "1"})
+    hg.start_jocs(app)
+    page = client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
+    assert 'EJS_defaultOptions = { fps: "show" }' in page and "jocsDiagnostic()" in page
+    client.post("/admin/jocs/diagnostic", data={})
+    assert "jocsDiagnostic()" not in client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
+    app.extensions["game_controller"].stop_external()

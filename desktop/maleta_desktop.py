@@ -365,7 +365,7 @@ _HELP_TEXT = (
     "Flèches : se déplacer   ·   Entrée : valider   ·   Échap : retour au menu\n"
     "1 / 2 / 3 : réponses (Ven de l'occitan ?, Quiz)\n"
     "Duèl : S / D (joueur 1, réponses A / B), K / L (joueur 2)\n"
-    "P : diaporama   ·   F2 : poser un objet (NFC simulé)\n"
+    "F2 : poser un objet (NFC simulé)   ·   icône Cadre fotó du menu : diaporama\n"
     "F11 : plein écran   ·   Ctrl+Alt+A : administration (code 1234)\n\n"
     "SOURIS\n"
     "Clic sur une tuile, une carte ou une réponse : la choisir\n"

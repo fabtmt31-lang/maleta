@@ -61,7 +61,6 @@ DEFAULT_BUTTON_MAP = {
     2: ["answer_2"],     # Y (ex: "Fals")
     3: ["answer_1"],     # X (ex: "Vertadièr")
     6: ["back"],         # Select : retour a l'accueil depuis n'importe quel ecran
-    7: ["start_idle"],   # Start : forcer le retour au diaporama de veille
 }
 
 DEFAULT_HAT_MAP = {

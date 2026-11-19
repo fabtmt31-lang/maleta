@@ -25,7 +25,8 @@ des tuiles de jeu. Etats et transitions :
     TROBA  --(action "back")-->  MENU
     TROBA_FIN  --(n'importe quelle action, ou delai ecoule)-->  MENU
 
-    N'importe quel etat --(bouton Start, action "start_idle")-->  VEILLE (lancement volontaire du diaporama/ecran vitrine)
+    MENU --(icone « Cadre fotó »)-->  VEILLE (lancement volontaire du diaporama/ecran vitrine ;
+          v1.31 : plus de bouton de manette dedie, l'ancienne action "start_idle" est retiree)
 
     v0.7 (15/09/2026) -- jeu a 2 joueurs "Duèl Occitan" (voir plus bas pour
     le detail) :
@@ -449,7 +450,7 @@ class GameController:
         l'autre au meme appui : la 1ere fait entrer dans le jeu, la 2e est
         alors traitee comme une reponse DANS ce jeu et valide sa premiere
         question sans que le joueur l'ait choisi. Verifie AVANT toute autre
-        logique (y compris le raccourci global "start_idle" ci-dessous), pour
+        logique, pour
         qu'aucune action ne puisse jamais passer au travers.
 
         v1.03 : tout le traitement se fait sous self._dispatch_lock (voir
@@ -523,12 +524,6 @@ class GameController:
             # convertie en touches sur aprene), jamais aux ecrans de la borne.
             handler.on_action(action)
             return
-        if action == "start_idle":
-            # Raccourci global (bouton Start) : lancement volontaire du
-            # diaporama/ecran vitrine, depuis n'importe quel ecran.
-            self.go_to_veille()
-            return
-
         with self._lock:
             state = self.state
 
@@ -676,6 +671,17 @@ class GameController:
         # Pas de minuteur d'inactivite ici : le menu EST l'ecran d'accueil,
         # rien ne doit en faire sortir tout seul (voir docstring).
 
+    def open_diaporama(self):
+        """Icone « Cadre fotó » du menu, cliquee (souris / ecran tactile).
+        v1.31 : plus de bouton de manette dedie au diaporama (action
+        "start_idle" retiree) ; depuis le menu, l'icone reste selectionnable
+        comme les tuiles."""
+        with self._dispatch_lock:
+            with self._lock:
+                if self.state != STATE_MENU:
+                    return
+            self.go_to_veille()
+
     # --- Jeux caches (v1.3) ------------------------------------------------------
 
     def start_external(self, kind, title, handler, step=None):
@@ -757,7 +763,7 @@ class GameController:
             if icon == "diaporama":
                 # Icone "Cadre fotó" (v0.8, ex-tuile) : bascule directement
                 # sur la veille/diaporama, exactement comme l'ancienne tuile
-                # ou le bouton Start (voir on_action, action "start_idle").
+                # (v1.31 : plus de bouton Start dedie, voir open_diaporama).
                 self.go_to_veille()
             elif icon == "admin":
                 # Icone Admin : pas un jeu, pas de changement d'etat -- un seul

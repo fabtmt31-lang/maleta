@@ -73,10 +73,17 @@ def dev_simulate_tag(uid):
     return jsonify({"ok": True, "uid": uid})
 
 
+@kiosk_bp.route("/diaporama", methods=["POST"])
+def diaporama():
+    """Clic sur l'icone « Cadre fotó » du menu (v1.31)."""
+    current_app.extensions["game_controller"].open_diaporama()
+    return jsonify({"ok": True})
+
+
 @kiosk_bp.route("/dev/action/<action>", methods=["POST"])
 def dev_action(action):
     """Simule une action manette (mode dev, sans manette branchee) : back,
-    select, left, right, answer_1, answer_2, start_idle. Etape 2 : remplace
+    select, left, right, answer_1, answer_2. Etape 2 : remplace
     l'ancienne route /dev/back, moins generique (elle forcait toujours le
     retour a l'accueil, sans passer par le dispatcher d'etats)."""
     current_app.extensions["game_controller"].on_action(action)

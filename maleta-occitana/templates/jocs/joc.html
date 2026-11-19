@@ -8,6 +8,11 @@
 {% block body %}
 <div id="game"></div>
 <div class="jocs-exit-hint" id="jocs-exit-hint">{{ m.key('Échap') }}<span>tornar al centre de jòcs</span></div>
+{%- if diagnostic %}
+<!-- v1.31 : diagnostic (Admin > Jòcs amagats) -- carte graphique vue par le
+     navigateur ; les images par seconde sont affichees par EmulatorJS. -->
+<div class="jocs-diagnostic" id="jocs-diagnostic"></div>
+{%- endif %}
 {% endblock %}
 {% block scripts %}
 <script>
@@ -37,6 +42,10 @@
   window.EJS_volume = 0.8;
   window.EJS_Buttons = {{ buttons | tojson }};
   window.EJS_defaultControls = {{ controls | tojson }};
+  {%- if diagnostic %}
+  window.EJS_defaultOptions = { fps: "show" };
+  jocsDiagnostic();
+  {%- endif %}
 </script>
 <script src="{{ url_for('static', filename='vendor/emulatorjs/data/loader.js') }}"></script>
 {% endblock %}

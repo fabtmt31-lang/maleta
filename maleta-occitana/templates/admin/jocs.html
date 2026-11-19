@@ -69,6 +69,10 @@
     <form method="post" action="{{ url_for('admin.jocs_centre_start') }}">
       <button type="submit" class="button" {{ 'disabled' if not roms_total }}>▶ Lancer le centre de jòcs</button>
     </form>
+    <form method="post" action="{{ url_for('admin.jocs_diagnostic') }}" style="margin-top:10px">
+      <label class="checkbox-label"><input type="checkbox" name="diagnostic" value="1" {{ 'checked' if diagnostic }}
+        onchange="this.form.submit()"> Diagnostic : afficher pendant la partie les images par seconde et la carte graphique</label>
+    </form>
     <p style="margin:8px 0 0"><a href="{{ url_for('admin.jocs_library') }}">Bibliothèque des jeux →</a><br>
       <a href="{{ url_for('admin.jocs_controls') }}">Réglage de la manette →</a></p>
   </div>

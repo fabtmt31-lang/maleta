@@ -1292,6 +1292,7 @@ def jocs():
         roms_count=roms_count,
         roms_total=sum(roms_count.values()),
         systems=rom_manager.SYSTEMS,
+        diagnostic=rom_manager.get_diagnostic(),
         players_with_pad=[p for p in rom_manager.PLAYERS
                           if any(v["pad"] for v in controls["nes"][str(p)].values())],
     )
@@ -1391,6 +1392,13 @@ def jocs_library_delete(rom_id):
     rom_manager.delete_rom(rom_id)
     flash("Jeu supprimé (fichier compris)")
     return redirect(url_for("admin.jocs_library"))
+
+
+@admin_bp.route("/jocs/diagnostic", methods=["POST"])
+@login_required
+def jocs_diagnostic():
+    rom_manager.set_diagnostic(bool(request.form.get("diagnostic")))
+    return redirect(url_for("admin.jocs"))
 
 
 @admin_bp.route("/jocs/maneta")

@@ -19,7 +19,7 @@ et se met à jour exactement comme les précédentes, sans perdre le contenu
 déjà saisi :
 
 ```bash
-unzip -o maleta-occitana-v1.31.zip -d ~
+unzip -o maleta-occitana-v1.32.zip -d ~
 cd ~/maleta-occitana
 sudo bash install.sh
 ```
@@ -182,7 +182,6 @@ Différences avec la borne :
   | 1 / 2 / 3 | réponses (Ven de l'occitan ?, Quiz) |
   | S / D | Duèl, joueur 1 : réponse A / B |
   | K / L | Duèl, joueur 2 : réponse A / B |
-  | P | diaporama |
   | F2 | poser un objet (NFC simulé) |
   | F11 | plein écran |
   | Ctrl+Alt+A | administration |

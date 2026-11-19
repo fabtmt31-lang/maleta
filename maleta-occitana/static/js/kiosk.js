@@ -910,10 +910,20 @@ function showExterne(payload) {
     li.textContent = mark + " " + label + (index === current && !payload.error && payload.step !== "playing" ? "…" : "");
     list.appendChild(li);
   });
-  const error = $("externe-error");
-  error.textContent = payload.error ? payload.error + " Retour au menu dans quelques secondes." : "";
-  error.classList.toggle("hidden", !payload.error);
-  $("externe-hint").textContent = payload.error ? "tornar al menú" : "anullar";
+  // Message sous les etapes : l'erreur, ou -- une fois aprene ouvert -- ou
+  // le trouver. Cet ecran n'est plus visible sur la borne elle-meme (son
+  // navigateur est parti sur aprene) : on le voit depuis un autre appareil
+  // (PC par le tunnel SSH...), qui n'affiche pas aprene.
+  const info = $("externe-error");
+  let text = "";
+  if (payload.error) text = payload.error + " Retour au menu dans quelques secondes.";
+  else if (payload.step === "playing") {
+    text = "aprene est ouvert sur l'écran de la borne. Pour revenir à la Maleta : Échap deux fois sur la borne, " +
+      "Échap ici, ou « Arrêter » dans l'admin (Jòcs amagats).";
+  }
+  info.textContent = text;
+  info.classList.toggle("hidden", !text);
+  $("externe-hint").textContent = payload.error ? "tornar al menú" : payload.step === "playing" ? "arrestar aprene" : "anullar";
 }
 
 window.addEventListener("keydown", (event) => {
@@ -952,7 +962,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const diaporamaIcon = document.getElementById("menu-diaporama-icon");
   if (diaporamaIcon) {
     diaporamaIcon.addEventListener("click", () => {
-      fetch("/dev/action/start_idle", { method: "POST" });
+      fetch("/diaporama", { method: "POST" });
     });
   }
 });

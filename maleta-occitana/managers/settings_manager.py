@@ -262,7 +262,6 @@ GAMEPAD_ACTIONS = [
     {"action": "down", "label": "Bas (menu / croix directionnelle)"},
     {"action": "answer_1", "label": "Ven de l'occitan ? : réponse 1"},
     {"action": "answer_2", "label": "Ven de l'occitan ? : réponse 2"},
-    {"action": "start_idle", "label": "Lancer le diaporama (Start)"},
     # v0.7 (15/09/2026) : jeu "Duèl Occitan" -- demande par Fabien comme un
     # jeu a 2 joueurs sur UNE SEULE manette (2 boutons par joueur, ex. A/B
     # pour le joueur 1 et X/Y pour le joueur 2 -- "à configurer" selon ses
@@ -309,7 +308,7 @@ ACTIVITY_CONTROL_SECTIONS = [
             "menu, se déplacer. Le diaporama (écran de veille) se ferme "
             "aussi avec n'importe lequel de ces contrôles."
         ),
-        "actions": ["select", "back", "left", "right", "up", "down", "start_idle"],
+        "actions": ["select", "back", "left", "right", "up", "down"],
     },
     {
         "title": "Tròba l'objècte",
@@ -362,10 +361,17 @@ def _normalize_action_list(value):
     nouveau format `[action, ...]`, pour ne pas perdre les assignations deja
     enregistrees en base par Fabien lors de la mise a jour."""
     if isinstance(value, str):
-        return [value]
+        value = [value]
     if isinstance(value, list):
-        return list(value)
+        # v1.31 : actions retirees (ex. "start_idle", lancement du diaporama
+        # a la manette, supprime a la demande de Fabien) : ignorees si elles
+        # sont encore dans un mapping enregistre.
+        return [a for a in value if a not in REMOVED_ACTIONS]
     return []
+
+
+# Actions qui ne sont plus assignables (anciennes valeurs en base ignorees).
+REMOVED_ACTIONS = {"start_idle"}
 
 
 def get_gamepad_button_map():
@@ -569,7 +575,6 @@ DEMO_KEY_MAP = {
     "1": ["answer_1"],
     "2": ["answer_2"],
     "3": ["answer_3"],
-    "p": ["start_idle"],
     "s": ["duel_p1_a"],
     "d": ["duel_p1_b"],
     "k": ["duel_p2_a"],

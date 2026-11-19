@@ -99,6 +99,24 @@ function jocsCentre() {
   render();
 }
 
+// v1.31 : diagnostic de fluidite -- quelle carte graphique le navigateur
+// utilise-t-il ? « SwiftShader » / « llvmpipe » = rendu logiciel (sans carte
+// graphique), cause la plus probable d'un jeu saccade.
+function jocsDiagnostic() {
+  const box = document.getElementById("jocs-diagnostic");
+  if (!box) return;
+  let renderer = "inconnue";
+  try {
+    const gl = document.createElement("canvas").getContext("webgl2") || document.createElement("canvas").getContext("webgl");
+    const info = gl && gl.getExtension("WEBGL_debug_renderer_info");
+    renderer = gl ? (info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) : "aucune (WebGL indisponible)";
+  } catch (e) { renderer = "erreur : " + e.message; }
+  const software = /swiftshader|llvmpipe|software|aucune/i.test(renderer);
+  box.classList.toggle("warn", software);
+  box.textContent = "Carte graphique : " + renderer + (software ? " — RENDU LOGICIEL (sans carte graphique) : jeu ralenti" : "") +
+    " · WebGL2 : " + (document.createElement("canvas").getContext("webgl2") ? "oui" : "non");
+}
+
 function jocsPartida() {
   onEscape(() => { window.location.href = "/jocs/"; });
   const hint = document.getElementById("jocs-exit-hint");

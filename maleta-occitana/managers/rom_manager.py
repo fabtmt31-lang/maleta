@@ -221,6 +221,20 @@ def reset_controls():
     settings_manager._delete(KEY_CONTROLS)
 
 
+KEY_DIAGNOSTIC = "jocs_diagnostic"
+
+
+def get_diagnostic():
+    """v1.31 : affiche pendant la partie les images par seconde et la carte
+    graphique utilisee par le navigateur (recherche de la cause d'un jeu
+    saccade ou en retard)."""
+    return settings_manager._get(KEY_DIAGNOSTIC, "0") == "1"
+
+
+def set_diagnostic(enabled):
+    settings_manager._set(KEY_DIAGNOSTIC, "1" if enabled else "0")
+
+
 def get_six_buttons():
     return settings_manager._get(KEY_SIX_BUTTONS, "0") == "1"
 
