@@ -468,7 +468,7 @@ def test_quit_combo(tmp_path):
     assert "Quitter un jeu à la manette" in page and "Select + Start" in page and 'name="console"' in page
     _mods()[1].start_jocs(app)
     play = client.get(f"/jocs/joc/{rom_id}").get_data(as_text=True)
-    assert 'jocsPartida({"buttons": ["SELECT", "START"], "hold": 1.0})' in play and "Select + Start" in play
+    assert f'jocsPartida({{"buttons": ["SELECT", "START"], "hold": 1.0}}, {rom_id})' in play and "Select + Start" in play
 
     # Capture sur la borne : un seul bouton refuse, puis L + R + Start
     capture = app.extensions["pad_capture"]
