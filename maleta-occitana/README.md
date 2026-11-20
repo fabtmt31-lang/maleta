@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.34** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.35** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -406,6 +406,15 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.35** (20/11/2026) — **la manette ne répondait plus une fois le jeu
+  lancé** (signalé par Fabien ; menus de la borne et réglages pourtant OK).
+  L'émulateur n'attribue une manette à un joueur qu'au moment où elle
+  « apparaît », et ignore celles qui apparaissent avant la fin de son
+  chargement. Or le navigateur voit la manette dès l'ouverture de la page de
+  jeu, puisqu'elle vient de servir à choisir le jeu : elle n'était attribuée à
+  personne. Le centre de jòcs attribue désormais lui-même les manettes
+  présentes : manette 1 → joueur 1, manette 2 → joueur 2 (y compris une
+  manette branchée en cours de partie). Vérifié avec des manettes simulées.
 - **v1.34** (19/11/2026) — centre de jòcs, retours de Fabien après la v1.33.
   1. **Jeu qui ralentit toujours quelques secondes après le lancement** :
      l'émulateur (RetroArch) cale par défaut sa vitesse sur la **sortie son**

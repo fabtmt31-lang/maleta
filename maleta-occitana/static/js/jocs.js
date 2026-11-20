@@ -161,6 +161,39 @@ function jocsRetroarchConfig(extra) {
   });
 }
 
+// v1.35 : manettes attribuees aux joueurs. EmulatorJS n'attribue une manette
+// a un joueur qu'a son evenement « connected », et l'ignore si elle arrive
+// avant la fin de sa propre initialisation : or Chromium voit la manette des
+// l'ouverture de la page de jeu (elle vient de servir dans le centre de
+// jòcs) -> manette attribuee a personne, le jeu ne repond pas. Ici, toute
+// manette vue et non attribuee prend la premiere place libre (dans l'ordre
+// des manettes : manette 1 -> joueur 1, manette 2 -> joueur 2).
+function jocsAssignPads() {
+  setInterval(() => {
+    const emulator = window.EJS_emulator;
+    if (!emulator || !emulator.gamepad || !Array.isArray(emulator.gamepadSelection)) return;
+    const selection = emulator.gamepadSelection;
+    const pads = emulator.gamepad.gamepads.slice().sort((a, b) => a.index - b.index);
+    let changed = false;
+    // Une manette branchee en cours de partie est aussi placee par
+    // EmulatorJS : pas de doublon (il occuperait la place du joueur 2).
+    selection.forEach((id, i) => {
+      if (id && selection.indexOf(id) !== i) { selection[i] = ""; changed = true; }
+    });
+    for (const pad of pads) {
+      const id = pad.id + "_" + pad.index;
+      if (selection.includes(id)) continue;
+      const free = selection.indexOf("");
+      if (free < 0) break;
+      selection[free] = id;
+      changed = true;
+    }
+    if (changed) {
+      try { emulator.updateGamepadLabels(); } catch (e) { /* menu non affiche */ }
+    }
+  }, 500);
+}
+
 // Noms des boutons de manette au format d'EmulatorJS, par numero de bouton
 // du navigateur (meme liste que static/js/pad-capture.js).
 const PAD_BUTTONS = ["BUTTON_1", "BUTTON_2", "BUTTON_3", "BUTTON_4", "LEFT_TOP_SHOULDER",
@@ -192,6 +225,7 @@ function jocsPartida(quitCombo) {
   const leave = () => { window.location.href = "/jocs/"; };
   onEscape(leave);
   watchQuitCombo(quitCombo, leave);
+  jocsAssignPads();
   const hint = document.getElementById("jocs-exit-hint");
   setTimeout(() => hint.classList.add("faded"), 4000);
   // Une fois effacee, l'aide ne reste pas en calque par-dessus le jeu.

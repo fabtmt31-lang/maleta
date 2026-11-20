@@ -271,3 +271,12 @@ Maquette : `admin-2-wifi.png`.
 - **Manèta** : menu déroulant de la console ; combinaison de sortie à la manette
   (2 à 4 boutons, maintenue 0 à 3 s, défaut Select + Start 1 s), capturée par
   la borne comme les boutons.
+
+## 15. Correctif v1.35
+
+- **Manette muette en jeu** : EmulatorJS n'attribue une manette à un joueur
+  (`gamepadSelection`) qu'à son évènement « connected », ignoré tant que son
+  interface n'est pas construite. Chromium exposant la manette dès le chargement
+  de la page (déjà utilisée dans le centre), elle n'était jamais attribuée.
+  `jocsAssignPads()` (static/js/jocs.js) place chaque manette vue dans la
+  première place libre, par ordre de manette, sans doublon.
