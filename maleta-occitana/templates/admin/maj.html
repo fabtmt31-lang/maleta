@@ -1,0 +1,87 @@
+{% extends "admin/base.html" %}
+{% block title %}Mise à jour{% endblock %}
+{% block content %}
+<!-- v1.37 : mise a jour de la borne depuis GitHub (managers/update_manager.py,
+     maj/maleta-maj.py). -->
+<div class="page-header">
+  <div><div class="page-eyebrow">Sistèma</div><h1>Mise à jour</h1>
+  <p class="muted" style="margin-top:4px">Installe la dernière version publiée sur
+    <a href="{{ release_url }}" target="_blank" rel="noopener">GitHub</a>. La borne doit être connectée à Internet
+    (<a href="{{ url_for('admin.wifi') }}">Wi-Fi</a>). Le contenu (objets, questions, médias, réglages, jeux) n'est jamais
+    touché, et il est sauvegardé juste avant.</p></div>
+</div>
+
+<div class="cards-grid">
+  <div class="card elev">
+    <div class="card-kicker">Version</div>
+    <div class="card-title">v{{ app_version }} installée</div>
+    {%- if check and check.error %}
+    <div class="flash" style="margin:8px 0">Vérification impossible : {{ check.error }}.</div>
+    {%- elif check %}
+    <table class="admin-table" style="margin:8px 0">
+      <tr><td>Dernière version publiée</td><td><strong>v{{ check.latest }}</strong></td></tr>
+      <tr><td>Publiée le</td><td>{{ check.published_at }} (UTC){% if check.commit %} · <span class="muted">{{ check.commit }}</span>{% endif %}</td></tr>
+      <tr><td>Taille</td><td>{{ check.size_mb }} Mo</td></tr>
+    </table>
+    <p style="margin:0 0 8px;font-weight:700">
+      {%- if check.newer %}Une nouvelle version est disponible.{% else %}La borne est à jour.{% endif %}</p>
+    {%- endif %}
+    <div class="form-actions" style="flex-wrap:wrap">
+      <form method="post" action="{{ url_for('admin.update_check') }}">
+        <button type="submit" class="button {{ 'btn-secondary' if check and check.newer }}" {{ 'disabled' if state and state.running }}>Chercher une mise à jour</button></form>
+      {%- if check and not check.error %}
+      <form method="post" action="{{ url_for('admin.update_install') }}"
+            onsubmit="return confirm('Installer la version {{ check.latest }} ? L\'appli redémarre à la fin (quelques minutes) : ne pas éteindre la borne pendant ce temps.')">
+        <button type="submit" class="button {{ '' if check.newer else 'btn-secondary' }}" {{ 'disabled' if not installer or (state and state.running) }}>
+          {{ 'Installer la v' ~ check.latest if check.newer else 'Réinstaller la v' ~ check.latest }}</button></form>
+      {%- endif %}
+    </div>
+    {%- if not installer %}
+    <p class="muted" style="margin:8px 0 0">L'installation depuis cette page sera possible après une mise à jour à la main
+      vers la v1.37 ou suivante (<code>sudo bash install.sh</code>), qui installe le programme de mise à jour.</p>
+    {%- endif %}
+  </div>
+
+  <div class="card elev">
+    <div class="card-kicker">Dernière mise à jour</div>
+    <div class="card-title" id="maj-titre">
+      {%- if not state %}Aucune{% elif state.running %}En cours…{% elif state.etat == 'termine' %}Réussie{% else %}Échouée{% endif %}</div>
+    <p style="margin:0" id="maj-message">{{ state.message if state else 'Aucune mise à jour lancée depuis cette page pour l\'instant.' }}</p>
+    {%- if state and state.erreur %}<p class="muted" style="margin:4px 0 0">Détail : {{ state.erreur }}</p>{% endif %}
+    {%- if state and state.debut %}<p class="muted" style="margin:4px 0 0">Lancée le {{ state.debut | replace('T', ' ') }}
+      {%- if state.depuis %} depuis la v{{ state.depuis }}{% endif %}.</p>{% endif %}
+    <details style="margin-top:10px" {{ 'open' if state and state.running }}>
+      <summary>Journal</summary>
+      <pre id="maj-journal" style="white-space:pre-wrap;font-size:12px;max-height:320px;overflow:auto;margin:6px 0 0">{{ log or '—' }}</pre>
+    </details>
+  </div>
+</div>
+
+{%- if state and state.running %}
+<script>
+// Suivi en direct. Pendant l'installation, l'appli redemarre : la page ne
+// repond plus quelques secondes, puis revient avec la nouvelle version.
+(function () {
+  const titre = document.getElementById("maj-titre");
+  const message = document.getElementById("maj-message");
+  const journal = document.getElementById("maj-journal");
+  const startVersion = {{ app_version | tojson }};
+  async function poll() {
+    try {
+      const res = await fetch("{{ url_for('admin.update_state') }}", { cache: "no-store" });
+      if (!res.ok || res.redirected) throw new Error("indisponible");
+      const data = await res.json();
+      if (data.state) message.textContent = data.state.message || "";
+      journal.textContent = data.log || "—";
+      journal.scrollTop = journal.scrollHeight;
+      if (!data.state || !data.state.running || data.version !== startVersion) return location.reload();
+    } catch (e) {
+      titre.textContent = "Redémarrage de l'appli…";
+    }
+    setTimeout(poll, 2000);
+  }
+  setTimeout(poll, 2000);
+})();
+</script>
+{%- endif %}
+{% endblock %}

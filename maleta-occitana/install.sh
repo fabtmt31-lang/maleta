@@ -320,6 +320,25 @@ ExecStart=-/sbin/agetty --autologin ${APP_USER} --noclear %I \$TERM
 EOF
 systemctl daemon-reload
 
+echo "== 10. Mise à jour depuis l'admin (GitHub) =="
+# v1.37 : Admin > Mise a jour. L'appli (utilisateur ${APP_USER}) a le droit de
+# lancer UNIQUEMENT "maleta-maj lancer" en root : le programme telecharge
+# lui-meme la derniere archive publiee sur GitHub (depot ecrit dans le
+# programme, ou dans /etc/default/maleta-maj), la verifie et rejoue CE script.
+install -m 0755 -o root -g root "${SOURCE_DIR}/maj/maleta-maj.py" /usr/local/sbin/maleta-maj
+install -d -m 0755 -o root -g root /var/lib/maleta-maj
+SUDOERS_TMP="$(mktemp)"
+cat > "${SUDOERS_TMP}" <<EOF
+# La Maleta Occitana (install.sh) : mise a jour depuis l'admin.
+${APP_USER} ALL=(root) NOPASSWD: /usr/local/sbin/maleta-maj lancer
+EOF
+if visudo -cf "${SUDOERS_TMP}" >/dev/null; then
+    install -m 0440 -o root -g root "${SUDOERS_TMP}" /etc/sudoers.d/maleta-maj
+else
+    echo "!! Règle sudo invalide : mise à jour depuis l'admin désactivée." >&2
+fi
+rm -f "${SUDOERS_TMP}"
+
 if [ "${FIRST_INSTALL}" -eq 1 ]; then
     RECAP_TITLE="== Installation terminée =="
 else
@@ -341,7 +360,9 @@ ${RECAP_TITLE}
 - PIN admin par défaut : 1234 (variable MALETA_ADMIN_PIN dans config.py) —
   à changer avant un événement, en ajoutant une ligne Environment= au service
   systemd (systemctl edit ${SERVICE_NAME}) puis systemctl restart.
-- Pour la prochaine mise à jour : décompresse la nouvelle archive dans
+- Mise à jour : Admin > Mise à jour (la borne doit être connectée à
+  Internet). Journal : /var/log/maleta-maj.log.
+- Mise à jour à la main (sans Internet) : décompresse la nouvelle archive dans
   ${SOURCE_DIR}, en remplaçant l'ancienne (ou dans un nouveau dossier
   ~/maleta-occitana), puis relance \`sudo bash install.sh\` depuis là —
   exactement la même commande, aucun argument à changer. Le contenu déjà

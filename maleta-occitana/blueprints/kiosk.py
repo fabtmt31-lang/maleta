@@ -152,6 +152,12 @@ def externe_quit():
     return jsonify({"ok": True})
 
 
+@kiosk_bp.route("/version")
+def version():
+    """v1.37 : l'ecran de la borne se recharge si la version change (mise a jour)."""
+    return jsonify({"version": config.APP_VERSION})
+
+
 @kiosk_bp.route("/externe/manette", methods=["POST"])
 def externe_pad():
     """v1.3 : bouton de manette lu par le navigateur de la borne pendant un

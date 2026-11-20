@@ -1030,8 +1030,15 @@ window.addEventListener("keydown", (event) => {
 if (typeof io === "function") {
   const socket = io("/kiosk");
 
+  // v1.37 : apres une mise a jour (Admin > Mise a jour), l'appli redemarre
+  // avec une nouvelle version : l'ecran se recharge pour en prendre le code.
+  let serverVersion = null;
   socket.on("connect", () => {
     console.log("[kiosk] connecte au serveur");
+    fetch("/version", { cache: "no-store" }).then((r) => r.json()).then((data) => {
+      if (serverVersion && data.version !== serverVersion) window.location.reload();
+      serverVersion = data.version;
+    }).catch(() => {});
   });
 
   socket.on("state_changed", (payload) => {

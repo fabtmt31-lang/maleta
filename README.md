@@ -19,10 +19,23 @@ et se met à jour exactement comme les précédentes, sans perdre le contenu
 déjà saisi :
 
 ```bash
-unzip -o maleta-occitana-v1.32.zip -d ~
+unzip -o maleta-occitana-v1.37.zip -d ~
 cd ~/maleta-occitana
 sudo bash install.sh
 ```
+
+**Depuis la v1.37 : mise à jour en un clic** — *Admin > Mesa a jorn*
+compare la version de la borne à la dernière publiée sur GitHub
+(publication `demo-latest` de ce dépôt) et l'installe : téléchargement,
+vérification de l'empreinte SHA-256 annoncée par GitHub, sauvegarde du
+contenu, puis `install.sh` rejoué automatiquement ; si l'installation
+échoue, l'ancienne version est réinstallée. La borne doit être connectée à
+Internet (Wi-Fi). La toute première fois, faire la mise à jour à la main
+ci-dessus (elle installe le programme de mise à jour,
+`/usr/local/sbin/maleta-maj`, seul autorisé à s'exécuter en root depuis
+l'appli). Journal : `/var/log/maleta-maj.log`. Pour suivre une autre
+publication (ex. une version stable `v1.4`) : `MAJ_ETIQUETTE=v1.4` dans
+`/etc/default/maleta-maj`.
 
 Depuis la v1.2 elle a, comme la démo, la page **Admin > Exportar /
 Importar** (export, import d'un export de la démo) et, depuis la v1.21,

@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.36** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.37** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -406,6 +406,21 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.37** (20/11/2026) — **mise à jour depuis GitHub** (demandée par
+  Fabien). Nouvelle page **Admin > Mesa a jorn** : « Chercher une mise à
+  jour » compare la version installée à la dernière archive de la borne
+  publiée sur GitHub ; « Installer » sauvegarde le contenu
+  (`sauvegardes/`), puis lance le programme de mise à jour
+  (`maj/maleta-maj.py`, installé par install.sh dans
+  `/usr/local/sbin/maleta-maj`). Ce programme, seul autorisé à tourner en
+  root depuis l'appli (`/etc/sudoers.d/maleta-maj`, commande « lancer »
+  uniquement), télécharge lui-même l'archive depuis le dépôt écrit dans son
+  code, vérifie son empreinte SHA-256 et son contenu, garde une copie du
+  code actuel, rejoue `install.sh` ; en cas d'échec il réinstalle
+  l'ancienne version. La page suit l'avancement en direct (journal), et
+  l'écran de la borne se recharge tout seul sur la nouvelle version.
+  **Une fois** : mettre à jour à la main en v1.37 (`sudo bash install.sh`)
+  pour installer ce programme ; ensuite tout se fait depuis l'admin.
 - **v1.36** (20/11/2026) — retours de Fabien sur le centre de jòcs.
   1. **Mega Drive : Start ne marchait jamais** (3 ou 6 boutons), impossible
      de commencer une partie. Le moteur Mega Drive (Genesis Plus GX) sert

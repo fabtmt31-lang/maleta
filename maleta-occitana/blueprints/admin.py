@@ -18,7 +18,7 @@ from flask import (
 
 import config
 from managers import (
-    content_transfer, duel_manager, hidden_games, rom_manager, wifi_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
+    content_transfer, duel_manager, hidden_games, update_manager, rom_manager, wifi_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
     vertadier_manager, village_manager,
 )
 from managers.tag_reader import SimulatedTagReader
@@ -1178,6 +1178,54 @@ def config_keyboard_unassign():
 # Extraire le contenu saisi a la main (typiquement dans la version de demo)
 # pour le reimplanter dans une autre installation (typiquement la borne).
 # Voir managers/content_transfer.py pour le format.
+
+# --- Mise a jour depuis GitHub (v1.37, borne) -----------------------------------
+# Voir managers/update_manager.py et maj/maleta-maj.py.
+
+@admin_bp.route("/maj")
+@login_required
+def update_page():
+    if config.DEMO_MODE:
+        return redirect(url_for("admin.dashboard"))
+    return render_template(
+        "admin/maj.html",
+        check=session.pop("update_check", None),
+        installer=update_manager.installer_available(),
+        state=update_manager.read_state(),
+        log=update_manager.read_log(),
+        release_url=update_manager.release_url(),
+    )
+
+
+@admin_bp.route("/maj/verificar", methods=["POST"])
+@login_required
+def update_check():
+    try:
+        session["update_check"] = update_manager.check()
+    except update_manager.UpdateError as exc:
+        session["update_check"] = {"error": str(exc)}
+    return redirect(url_for("admin.update_page"))
+
+
+@admin_bp.route("/maj/installar", methods=["POST"])
+@login_required
+def update_install():
+    if config.DEMO_MODE:
+        return redirect(url_for("admin.dashboard"))
+    try:
+        backup = update_manager.launch()
+        flash(f"Mise à jour lancée (contenu sauvegardé : {backup}). La borne redémarre l'appli à la fin.")
+    except update_manager.UpdateError as exc:
+        flash(f"Mise à jour impossible : {exc}")
+    return redirect(url_for("admin.update_page"))
+
+
+@admin_bp.route("/maj/estat")
+@login_required
+def update_state():
+    return jsonify({"version": config.APP_VERSION, "state": update_manager.read_state(),
+                    "log": update_manager.read_log(15)})
+
 
 @admin_bp.route("/transfer")
 @login_required
