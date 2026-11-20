@@ -280,3 +280,15 @@ Maquette : `admin-2-wifi.png`.
   de la page (déjà utilisée dans le centre), elle n'était jamais attribuée.
   `jocsAssignPads()` (static/js/jocs.js) place chaque manette vue dans la
   première place libre, par ordre de manette, sans doublon.
+
+## 16. Correctifs v1.36
+
+- **Start absent sur Mega Drive** : sans `EJS_controlScheme`, EmulatorJS déduit
+  la console du moteur ; `genesis_plus_gx` figure d'abord sous `segaMS` (Master
+  System), dont la liste de boutons ne contient ni Start, ni A, X, Y, Z, Mode :
+  ils étaient supprimés des réglages. `SYSTEMS[...]["scheme"]` (rom_manager)
+  est passé à `EJS_controlScheme`.
+- **Sortie par combinaison** : `pollGamepads` prend la première lecture de
+  chaque manette comme état de référence (un bouton tenu à l'ouverture de la
+  page ne compte qu'après relâchement) ; retour sur la tuile du jeu quitté
+  (`/jocs/?depuis=<id>`).

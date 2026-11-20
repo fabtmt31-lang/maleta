@@ -41,7 +41,14 @@ function pollGamepads(callback) {
     for (const pad of pads) {
       if (!pad) continue;
       const state = read(pad);
-      const before = previous[pad.index] || {};
+      // v1.36 : premiere lecture d'une manette = etat de reference. Un bouton
+      // deja enfonce a l'ouverture de la page (ex. Select + Start qui vient
+      // de quitter un jeu) ne compte qu'une fois relache puis rappuye.
+      if (!previous[pad.index]) {
+        previous[pad.index] = state;
+        continue;
+      }
+      const before = previous[pad.index];
       for (const name in state) {
         if (state[name] && !before[name]) callback(name);
       }
@@ -57,7 +64,9 @@ function jocsCentre() {
   const COLUMNS = 3;
   const tiles = Array.from(document.querySelectorAll(".tile-jocs"));
   const pageLabel = document.getElementById("jocs-page");
-  let index = 0;
+  // v1.36 : retour d'une partie -> le jeu qu'on vient de quitter reste selectionne.
+  const from = new URLSearchParams(window.location.search).get("depuis");
+  let index = Math.max(0, tiles.findIndex((tile) => from && tile.dataset.url.endsWith("/joc/" + from)));
 
   function render() {
     const page = Math.floor(index / PER_PAGE);
@@ -221,8 +230,8 @@ function watchQuitCombo(combo, callback) {
   })();
 }
 
-function jocsPartida(quitCombo) {
-  const leave = () => { window.location.href = "/jocs/"; };
+function jocsPartida(quitCombo, romId) {
+  const leave = () => { window.location.href = "/jocs/" + (romId ? "?depuis=" + romId : ""); };
   onEscape(leave);
   watchQuitCombo(quitCombo, leave);
   jocsAssignPads();

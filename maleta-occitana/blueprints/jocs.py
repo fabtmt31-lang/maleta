@@ -64,6 +64,7 @@ def play(rom_id):
         "jocs/joc.html",
         rom=rom,
         core=system["core"],
+        control_scheme=system["scheme"],
         rom_url=url_for("jocs.rom_file", rom_id=rom_id),
         controls=rom_manager.emulatorjs_controls(rom["system"]),
         buttons=EMULATORJS_BUTTONS,

@@ -376,6 +376,10 @@ def test_snes_and_atari_2600(tmp_path):
     hg = _mods()[1]
     hg.start_jocs(app)
     assert 'EJS_core = "stella2014"' in client.get(f"/jocs/joc/{sonic}").get_data(as_text=True)
+    # v1.36 : console annoncee a EmulatorJS (sinon Mega Drive = Master System, Start supprime)
+    client.post(f"/admin/jocs/bibliotheca/{sonic}", data={"title": "Sonic", "players": "1", "active": "1", "system": "md"})
+    play = client.get(f"/jocs/joc/{sonic}").get_data(as_text=True)
+    assert 'EJS_controlScheme = "segaMD"' in play and f"jocsPartida(" in play and f", {sonic});" in play
     snes = roms["Super Mario World"]["id"]
     assert 'EJS_core = "snes9x"' in client.get(f"/jocs/joc/{snes}").get_data(as_text=True)
     app.extensions["game_controller"].stop_external()

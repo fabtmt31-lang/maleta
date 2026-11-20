@@ -27,11 +27,12 @@
       return realFetch.call(this, input, init);
     };
   })();
-  jocsPartida({{ quit_combo | tojson }});
+  jocsPartida({{ quit_combo | tojson }}, {{ rom.id }});
   // v1.34 : vitesse calee sur l'image et non sur le son (Admin > Jòcs amagats)
   jocsRetroarchConfig({{ retroarch_cfg | tojson }});
   window.EJS_player = "#game";
   window.EJS_core = {{ core | tojson }};
+  window.EJS_controlScheme = {{ control_scheme | tojson }}; // v1.36 : sinon Mega Drive vue comme Master System (Start perdu)
   window.EJS_gameUrl = {{ rom_url | tojson }};
   window.EJS_gameName = {{ rom.title | tojson }};
   window.EJS_pathtodata = {{ url_for('static', filename='vendor/emulatorjs/data/') | tojson }};

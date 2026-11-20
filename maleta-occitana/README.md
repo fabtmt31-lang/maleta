@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.35** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.36** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -406,6 +406,18 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.36** (20/11/2026) — retours de Fabien sur le centre de jòcs.
+  1. **Mega Drive : Start ne marchait jamais** (3 ou 6 boutons), impossible
+     de commencer une partie. Le moteur Mega Drive (Genesis Plus GX) sert
+     aussi la Master System, et l'émulateur le prenait pour une Master
+     System : il retirait tous les boutons qu'une manette Master System n'a
+     pas — Start, A, X, Y, Z et Mode. La console est maintenant annoncée à
+     l'émulateur pour chaque jeu (NES, Super NES, Mega Drive, Atari 2600).
+  2. **Select + Start relançait aussitôt le premier jeu** si on ne lâchait
+     pas les boutons assez vite : de retour au centre, Start valait
+     « jouer ». Le centre ignore désormais tout bouton déjà enfoncé à son
+     ouverture : il faut le relâcher avant qu'un appui compte. Et le retour se
+     fait sur la tuile du jeu qu'on vient de quitter.
 - **v1.35** (20/11/2026) — **la manette ne répondait plus une fois le jeu
   lancé** (signalé par Fabien ; menus de la borne et réglages pourtant OK).
   L'émulateur n'attribue une manette à un joueur qu'au moment où elle

@@ -16,15 +16,19 @@ from managers import settings_manager
 from managers.upload_utils import safe_upload_name
 
 SYSTEMS = {
-    "nes": {"label": "NES", "core": "fceumm", "extensions": {"nes"}, "max_bytes": 1024 * 1024,
+    "nes": {"label": "NES", "core": "fceumm", "scheme": "nes", "extensions": {"nes"}, "max_bytes": 1024 * 1024,
             "libretro": "Nintendo - Nintendo Entertainment System"},
-    "snes": {"label": "Super NES", "core": "snes9x", "extensions": {"sfc", "smc"}, "max_bytes": 8 * 1024 * 1024,
+    "snes": {"label": "Super NES", "core": "snes9x", "scheme": "snes", "extensions": {"sfc", "smc"}, "max_bytes": 8 * 1024 * 1024,
              "libretro": "Nintendo - Super Nintendo Entertainment System"},
-    "md": {"label": "Mega Drive", "core": "genesis_plus_gx", "extensions": {"md", "gen", "bin", "smd"},
+    "md": {"label": "Mega Drive", "core": "genesis_plus_gx", "scheme": "segaMD", "extensions": {"md", "gen", "bin", "smd"},
            "max_bytes": 8 * 1024 * 1024, "libretro": "Sega - Mega Drive - Genesis"},
-    "a26": {"label": "Atari 2600", "core": "stella2014", "extensions": {"a26", "bin"}, "max_bytes": 512 * 1024,
+    "a26": {"label": "Atari 2600", "core": "stella2014", "scheme": "atari2600", "extensions": {"a26", "bin"}, "max_bytes": 512 * 1024,
             "libretro": "Atari - 2600"},
 }
+# "scheme" (v1.36) : console annoncee a EmulatorJS (EJS_controlScheme). Sans
+# elle, il deduit la console du moteur ; or Genesis Plus GX sert aussi la
+# Master System, qu'il trouve en premier : il supprimait alors tous les
+# boutons absents d'une manette Master System (Start, A, X, Y, Z, Mode).
 # v1.33 : l'extension .bin sert a la fois a l'Atari 2600 et a la Mega Drive.
 # Les jeux Atari 2600 font au plus quelques dizaines de Ko, les jeux Mega
 # Drive au moins 128 Ko : en dessous de ce seuil, un .bin est un jeu Atari
