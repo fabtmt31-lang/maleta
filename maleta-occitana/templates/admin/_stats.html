@@ -1,0 +1,72 @@
+{#- v1.4 : morceaux communs des pages de statistiques (managers/stats_manager.py
+    calcule la geometrie des graphiques ; info detaillee au survol : <title>). -#}
+{% macro tabs(current, periode=None) -%}
+<span class="st-tabs muted">
+  {%- for key, label, url in [('vue', "Vue d'ensemble", url_for('admin.stats_overview', periode=periode)),
+                              ('jorn', 'Journée heure par heure', url_for('admin.stats_day')),
+                              ('joc', 'Détail par jeu', url_for('admin.stats_activity', activity='quiz_calandreta', periode=periode))] %}
+  {%- if key == current %}<strong>{{ label }}</strong>{% else %}<a href="{{ url }}">{{ label }}</a>{% endif %}
+  {%- endfor %}
+</span>
+{%- endmacro %}
+
+{% macro periods_bar(periods, periode, endpoint, extra={}) -%}
+<div class="st-seg">
+  {%- for key, label in periods %}<a class="{{ 'on' if key == periode }}" href="{{ url_for(endpoint, periode=key, **extra) }}">{{ label }}</a>{% endfor %}
+</div>
+{%- endmacro %}
+
+{% macro legend(groups) -%}
+<div class="st-legend">{% for key, label, color in groups %}<span><i style="background:{{ color }}"></i>{{ label }}</span>{% endfor %}</div>
+{%- endmacro %}
+
+{% macro stacked(c) -%}
+<svg class="st-chart" viewBox="0 0 {{ c.width }} {{ c.height }}" role="img" aria-label="Minutes de jeu par heure et par jeu">
+  {%- for g in c.grid %}
+  <line class="st-grid-line" x1="{{ c.left }}" x2="{{ c.width }}" y1="{{ g.y }}" y2="{{ g.y }}"/>
+  <text x="{{ c.left - 6 }}" y="{{ g.y + 4 }}" text-anchor="end">{{ g.text }}</text>
+  {%- endfor %}
+  <text x="0" y="10">minutes</text>
+  {%- for b in c.bars %}
+  <rect data-hover x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="2" fill="{{ b.color }}"><title>{{ b.title }}</title></rect>
+  {%- endfor %}
+  {%- for l in c.labels %}
+  <text x="{{ l.x }}" y="{{ c.height - 6 }}" text-anchor="middle"><title>{{ l.title }}</title>{{ l.text }}</text>
+  {%- endfor %}
+</svg>
+{%- endmacro %}
+
+{% macro heatmap(h) -%}
+{%- set cw, ch, left = 38, 26, 44 %}
+<svg class="st-chart" viewBox="0 0 {{ left + 24 * (cw + 2) }} {{ 7 * (ch + 3) + 22 }}" role="img" aria-label="Minutes de jeu par jour de la semaine et par heure">
+  {%- for d in h.days %}<text x="{{ left - 6 }}" y="{{ loop.index0 * (ch + 3) + ch / 2 + 4 }}" text-anchor="end">{{ d }}</text>{% endfor %}
+  {%- for c in h.cells %}
+  <rect data-hover x="{{ left + c.h * (cw + 2) }}" y="{{ c.d * (ch + 3) }}" width="{{ cw }}" height="{{ ch }}" rx="3"
+        fill="{{ c.fill or 'var(--line)' }}" {% if not c.fill %}opacity=".55"{% endif %}><title>{{ c.title }}</title></rect>
+  {%- if c.level >= 0.5 %}<text x="{{ left + c.h * (cw + 2) + cw / 2 }}" y="{{ c.d * (ch + 3) + ch / 2 + 4 }}" text-anchor="middle" style="fill:#fff;font-weight:700">{{ c.minutes }}</text>{% endif %}
+  {%- endfor %}
+  {%- for hour in range(24) %}{% if hour % 2 == 0 %}<text x="{{ left + hour * (cw + 2) + cw / 2 }}" y="{{ 7 * (ch + 3) + 14 }}" text-anchor="middle">{{ hour }} h</text>{% endif %}{% endfor %}
+</svg>
+{%- endmacro %}
+
+{% macro timeline(t) -%}
+<svg class="st-chart" viewBox="0 0 {{ t.width }} {{ t.height }}" role="img" aria-label="Parties de la journée">
+  {%- for tick in t.ticks %}
+  <line class="st-grid-line" x1="{{ tick.x }}" x2="{{ tick.x }}" y1="4" y2="{{ t.height - 22 }}"/>
+  <text x="{{ tick.x }}" y="{{ t.axis_y }}" text-anchor="middle">{{ tick.text }}</text>
+  {%- endfor %}
+  {%- for row in t.rows %}<text class="st-row-label" x="{{ t.left - 10 }}" y="{{ row.y }}" text-anchor="end">{{ row.text }}</text>{% endfor %}
+  {%- for m in t.marks %}
+  {%- if m.hatched %}
+  <pattern id="h{{ loop.index }}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--surface)"/><line x1="0" y1="0" x2="0" y2="6" stroke-width="3" stroke="{{ m.color }}"/></pattern>
+  <rect data-hover x="{{ m.x }}" y="{{ m.y }}" width="{{ m.w }}" height="{{ m.h }}" rx="4" fill="url(#h{{ loop.index }})" stroke="{{ m.color }}" stroke-width="1.5"><title>{{ m.title }}</title></rect>
+  {%- else %}
+  <rect data-hover x="{{ m.x }}" y="{{ m.y }}" width="{{ m.w }}" height="{{ m.h }}" rx="4" fill="{{ m.color }}"><title>{{ m.title }}</title></rect>
+  {%- endif %}
+  {%- endfor %}
+</svg>
+{%- endmacro %}
+
+{% macro outcome(o) -%}
+{%- if o == 'finie' %}<span class="st-pill st-ok">✓ finie</span>{% elif o == 'abandon' %}<span class="st-pill st-ab">abandonnée</span>{% else %}<span class="muted">—</span>{% endif %}
+{%- endmacro %}

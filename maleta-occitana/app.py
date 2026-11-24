@@ -78,6 +78,9 @@ def create_app():
     }
 
     game_controller = GameController(socketio, app)
+    # v1.4 : statistiques d'utilisation (Admin > Estadísticas)
+    from managers.stats_manager import StatsRecorder
+    game_controller.stats = StatsRecorder(app)
 
     @socketio.on("connect", namespace="/kiosk")
     def kiosk_connect():

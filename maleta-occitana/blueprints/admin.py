@@ -7,18 +7,19 @@ Ven de l'occitan (ex-« Ven de l'occitan ») / Quiz / Reglages generaux viendron
 gabarit dans une etape ulterieure.
 """
 
+import datetime
 import io
 import time
 from functools import wraps
 
 from flask import (
     Blueprint, render_template, request, redirect, url_for, session, flash,
-    current_app, jsonify, send_file,
+    current_app, jsonify, send_file, abort,
 )
 
 import config
 from managers import (
-    content_transfer, duel_manager, hidden_games, update_manager, rom_manager, wifi_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
+    content_transfer, duel_manager, hidden_games, update_manager, stats_manager, rom_manager, wifi_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
     vertadier_manager, village_manager,
 )
 from managers.tag_reader import SimulatedTagReader
@@ -191,6 +192,8 @@ def dashboard():
         disk_total_label=mediatheque_manager.format_bytes(disk["total_bytes"]),
         # v1.22 : etat du lecteur NFC (detecte / absent, recherche en continu)
         nfc=current_app.extensions["tag_reader"].status(),
+        # v1.4 : encart « Aujourd'hui sur la borne »
+        today_stats=stats_manager.today_summary(),
     )
 
 
@@ -1178,6 +1181,71 @@ def config_keyboard_unassign():
 # Extraire le contenu saisi a la main (typiquement dans la version de demo)
 # pour le reimplanter dans une autre installation (typiquement la borne).
 # Voir managers/content_transfer.py pour le format.
+
+# --- Statistiques d'utilisation (v1.4) -----------------------------------------
+# Voir managers/stats_manager.py et docs/cahier-des-charges-statistiques.md.
+
+STATS_PERIODS = [("jorn", "Aujourd'hui"), ("7", "7 jours"), ("30", "30 jours"), ("tot", "Tout")]
+
+
+def _stats_period():
+    name = request.args.get("periode", "7")
+    if name not in dict(STATS_PERIODS):
+        name = "7"
+    start, end, label = stats_manager.period(name)
+    return name, start, end, label
+
+
+@admin_bp.route("/estadisticas")
+@login_required
+def stats_overview():
+    name, start, end, label = _stats_period()
+    return render_template("admin/stats.html", periode=name, periods=STATS_PERIODS, period_label=label,
+                           data=stats_manager.overview(start, end), groups=stats_manager.GROUPS,
+                           activities=stats_manager.ACTIVITIES, today=datetime.date.today())
+
+
+@admin_bp.route("/estadisticas/jorn")
+@login_required
+def stats_day():
+    try:
+        date = datetime.date.fromisoformat(request.args.get("data", ""))
+    except ValueError:
+        date = datetime.date.today()
+    return render_template("admin/stats_jorn.html", date=date, data=stats_manager.day(date),
+                           previous=date - datetime.timedelta(days=1), next=date + datetime.timedelta(days=1),
+                           is_today=date >= datetime.date.today(), groups=stats_manager.GROUPS,
+                           today_year=datetime.date.today().year)
+
+
+@admin_bp.route("/estadisticas/joc/<activity>")
+@login_required
+def stats_activity(activity):
+    if activity not in stats_manager.ACTIVITIES:
+        abort(404)
+    name, start, end, label = _stats_period()
+    return render_template("admin/stats_joc.html", activity=activity, periode=name, periods=STATS_PERIODS,
+                           period_label=label, data=stats_manager.activity_detail(activity, start, end),
+                           activities=stats_manager.ACTIVITIES)
+
+
+@admin_bp.route("/estadisticas/export.csv")
+@login_required
+def stats_export():
+    name, start, end, _ = _stats_period()
+    content = stats_manager.export_csv(start, end)
+    return current_app.response_class(
+        content.encode("utf-8"), mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=maleta-statistiques-{name}-{datetime.date.today()}.csv"})
+
+
+@admin_bp.route("/estadisticas/esfacar", methods=["POST"])
+@login_required
+def stats_reset():
+    name = stats_manager.reset(current_app.extensions["game_controller"].stats)
+    flash(f"Statistiques effacées. Une copie du journal a été gardée : sauvegardes/{name}")
+    return redirect(url_for("admin.stats_overview"))
+
 
 # --- Mise a jour depuis GitHub (v1.37, borne) -----------------------------------
 # Voir managers/update_manager.py et maj/maleta-maj.py.

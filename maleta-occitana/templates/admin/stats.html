@@ -1,0 +1,89 @@
+{% extends "admin/base.html" %}
+{% import 'admin/_stats.html' as st %}
+{% block title %}Estadísticas{% endblock %}
+{% block content %}
+<!-- v1.4 : statistiques d'utilisation, vue d'ensemble (managers/stats_manager.py). -->
+<div class="page-header">
+  <div><div class="page-eyebrow">Vista d'ensemble</div><h1>Estadísticas</h1>
+  <p class="muted" style="margin-top:4px">Ce qui a été joué sur la borne, quand, combien de temps. Aucune donnée personnelle :
+    la borne ne sait pas qui joue.</p></div>
+  <div class="page-header-actions">
+    <a class="button btn-secondary" href="{{ url_for('admin.stats_export', periode=periode) }}">Exporter (CSV)</a>
+  </div>
+</div>
+
+<div class="st-filters">
+  {{ st.periods_bar(periods, periode, 'admin.stats_overview') }}
+  <span class="muted">{{ period_label }}</span>
+  {{ st.tabs('vue', periode) }}
+</div>
+
+{%- set k = data.kpis %}
+<div class="st-tiles">
+  <div class="st-tile"><div class="v">{{ k.visits }}</div><div class="l">Visites</div><div class="d">sorties de veille</div></div>
+  <div class="st-tile"><div class="v">{{ k.games }}</div><div class="l">Parties lancées</div>
+    <div class="d">{% if k.per_visit %}{{ k.per_visit }} par visite{% endif %}{% if k.consultations %}{{ ' · ' if k.per_visit }}+ {{ k.consultations }} objet(s) consulté(s){% endif %}</div></div>
+  <div class="st-tile"><div class="v">{{ k.finished }}</div><div class="l">Parties finies</div>
+    <div class="d">{% if k.finished_rate is not none %}{{ k.finished_rate }} % des parties{% endif %}</div></div>
+  <div class="st-tile"><div class="v">{{ k.play }}</div><div class="l">Temps de jeu</div><div class="d">objets consultés compris</div></div>
+  <div class="st-tile"><div class="v">{{ k.visit_median }}</div><div class="l">Durée d'une visite</div><div class="d">médiane</div></div>
+</div>
+
+{%- if data.empty %}
+<div class="card elev" style="margin-top:22px"><div class="st-empty">Pas encore de partie enregistrée sur cette période.
+  Les statistiques se remplissent toutes seules quand la borne est utilisée.</div></div>
+{%- else %}
+<div class="st-grid">
+  <div class="card elev st-wide">
+    <div class="card-kicker">Heure par heure</div>
+    <div class="card-title">Minutes de jeu selon l'heure, par jeu (total sur la période)</div>
+    {{ st.legend(groups) }}
+    {{ st.stacked(data.hours_chart) }}
+    <p class="st-note">Une partie à cheval sur deux heures compte dans les deux. Survoler une barre : jeu et durée.</p>
+  </div>
+  <div class="card elev st-wide">
+    <div class="card-kicker">Quand la borne sert-elle ?</div>
+    <div class="card-title">Minutes de jeu par jour de la semaine et par heure</div>
+    {{ st.heatmap(data.week_chart) }}
+    <p class="st-note">Plus la case est foncée, plus la borne a servi (total des mêmes jours de la semaine sur la période).</p>
+  </div>
+  <div class="card elev st-wide">
+    <div class="card-kicker">Par jeu</div>
+    <div class="card-title">Temps passé et parties finies</div>
+    <div class="st-scroll">
+    <table class="admin-table st-nowrap">
+      <thead><tr><th>Jeu</th><th>Temps de jeu</th><th>Parties</th><th>Finies</th><th>Durée moy.</th><th>Résultat moyen</th><th></th></tr></thead>
+      <tbody>
+      {%- for a in data.activities %}
+        <tr>
+          <td><span class="st-dot" style="background:{{ a.color }}"></span><strong>{{ a.label }}</strong></td>
+          <td><span class="st-bar" style="width:{{ (1.4 * a.bar) | round | int }}px;background:{{ a.color }}"></span>{{ a.duration }}</td>
+          <td>{{ a.count }}{% if a.key == 'descoberta' %} <span class="muted">consultations</span>{% endif %}</td>
+          <td>{% if a.finished is not none %}{{ a.finished }} <span class="muted">({{ a.finished_rate }} %)</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td>{{ a.average }}</td>
+          <td>{{ a.result or '—' }}</td>
+          <td><a href="{{ url_for('admin.stats_activity', activity=a.key, periode=periode) }}">Détail →</a></td>
+        </tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="st-note">Partie finie = écran de fin atteint. Abandonnée = retour au menu, Échap ou mise en veille avant la fin
+      (le temps d'inactivité avant la mise en veille n'est pas compté). Jeux rétro, aprene et objets consultés : pas de notion de fin.</p>
+    {%- if data.has_old_totals %}<p class="st-note">Au-delà de 2 ans, seuls les totaux par jour sont gardés : ils comptent dans les chiffres
+      ci-dessus mais pas dans les graphiques.</p>{% endif %}
+  </div>
+</div>
+{%- endif %}
+
+<div class="card elev" style="margin-top:22px">
+  <div class="card-kicker">Gestion</div>
+  <div class="card-title">Effacer les statistiques</div>
+  <p class="muted" style="margin:4px 0 10px">Par exemple après une période de tests. Une copie du journal des parties (CSV) est gardée
+    dans <code>sauvegardes/</code> avant l'effacement. Le détail est de toute façon effacé tout seul après 2 ans (les totaux par jour restent).</p>
+  <form method="post" action="{{ url_for('admin.stats_reset') }}"
+        onsubmit="return confirm('Effacer toutes les statistiques ? (une copie CSV est gardée dans sauvegardes/)')">
+    <button type="submit" class="button btn-secondary">Effacer les statistiques</button>
+  </form>
+</div>
+{% endblock %}

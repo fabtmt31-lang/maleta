@@ -1,0 +1,79 @@
+{% extends "admin/base.html" %}
+{% import 'admin/_stats.html' as st %}
+{% block title %}Estadísticas · journée{% endblock %}
+{% block content %}
+<!-- v1.4 : statistiques, une journee heure par heure (managers/stats_manager.day). -->
+{%- set days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'] %}
+{%- set months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'] %}
+<div class="page-header">
+  <div><div class="page-eyebrow"><a href="{{ url_for('admin.stats_overview') }}">Estadísticas</a> · Journée</div>
+    <h1>{{ days[date.weekday()] | capitalize }} {{ date.day }} {{ months[date.month - 1] }}{% if date.year != today_year %} {{ date.year }}{% endif %}</h1></div>
+  <div class="page-header-actions">
+    <a class="button btn-secondary" href="{{ url_for('admin.stats_day', data=previous.isoformat()) }}">‹ Jour précédent</a>
+    {%- if not is_today %}<a class="button btn-secondary" href="{{ url_for('admin.stats_day', data=next.isoformat()) }}">Jour suivant ›</a>{% endif %}
+  </div>
+</div>
+<div class="st-filters">
+  <form method="get" action="{{ url_for('admin.stats_day') }}" style="display:flex;gap:8px;align-items:center">
+    <input class="input" type="date" name="data" value="{{ date.isoformat() }}" onchange="this.form.submit()" style="width:auto">
+  </form>
+  {{ st.tabs('jorn') }}
+</div>
+
+{%- set k = data.kpis %}
+<div class="st-tiles">
+  <div class="st-tile"><div class="v">{{ k.visits }}</div><div class="l">Visites</div><div class="d">{% if data.first_visit %}première à {{ data.first_visit }}{% endif %}</div></div>
+  <div class="st-tile"><div class="v">{{ k.games }}</div><div class="l">Parties lancées</div>
+    <div class="d">{% if k.consultations %}+ {{ k.consultations }} objet(s) consulté(s){% endif %}</div></div>
+  <div class="st-tile"><div class="v">{{ k.finished }}</div><div class="l">Parties finies</div><div class="d">{% if k.finished_rate is not none %}{{ k.finished_rate }} %{% endif %}</div></div>
+  <div class="st-tile"><div class="v">{{ k.play }}</div><div class="l">Temps de jeu</div></div>
+  <div class="st-tile"><div class="v">{{ k.visit_median }}</div><div class="l">Durée d'une visite</div><div class="d">médiane</div></div>
+</div>
+
+{%- if data.timeline.empty %}
+<div class="card elev" style="margin-top:22px"><div class="st-empty">Pas de partie enregistrée ce jour-là.</div></div>
+{%- else %}
+<div class="st-grid">
+  <div class="card elev st-wide">
+    <div class="card-kicker">Frise de la journée</div>
+    <div class="card-title">Chaque partie, de son début à sa fin</div>
+    <div class="st-legend"><span><i style="background:var(--ink)"></i>plein = partie finie (ou sans notion de fin)</span>
+      <span><i style="background:repeating-linear-gradient(45deg,var(--ink) 0 2px,var(--surface) 2px 5px);border:1.5px solid var(--ink)"></i>hachuré = abandonnée</span></div>
+    {{ st.timeline(data.timeline) }}
+    <p class="st-note">Survoler une partie : heures, durée, résultat.</p>
+  </div>
+  <div class="card elev st-wide">
+    <div class="card-kicker">Heure par heure</div>
+    <div class="card-title">Le détail de chaque heure</div>
+    <div class="st-scroll">
+    <table class="admin-table st-nowrap">
+      <thead><tr><th>Heure</th><th>Visites</th><th>Parties</th><th>Finies</th><th>Objets consultés</th><th>Temps de jeu</th><th>Le plus joué</th></tr></thead>
+      <tbody>
+      {%- for h in data.hours %}
+        <tr><td><strong>{{ h.label }}</strong></td><td>{{ h.visits }}</td><td>{{ h.games }}</td><td>{{ h.finished }}</td><td>{{ h.consultations }}</td>
+          <td>{{ h.play }}</td><td>{% if h.top %}<span class="st-dot" style="background:{{ h.top_color }}"></span>{{ h.top }}{% else %}—{% endif %}</td></tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="st-note">Seules les heures où la borne a servi sont listées (journée de 24 h).</p>
+  </div>
+  <div class="card elev st-wide">
+    <div class="card-kicker">Journal</div>
+    <div class="card-title">Les parties, une par une</div>
+    <div class="st-scroll">
+    <table class="admin-table st-nowrap">
+      <thead><tr><th>Début</th><th>Jeu</th><th>Détail</th><th>Durée</th><th>Fin</th><th>Résultat</th></tr></thead>
+      <tbody>
+      {%- for j in data.journal %}
+        <tr><td>{{ j.start }}</td><td><span class="st-dot" style="background:{{ j.color }}"></span>{{ j.activity }}</td>
+          <td>{{ j.detail or '—' }}</td><td>{{ j.duration }}</td><td>{{ st.outcome(j.outcome) }}</td><td>{{ j.result or '—' }}</td></tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="st-note"><a href="{{ url_for('admin.stats_export', periode='tot') }}">Exporter tout le journal (CSV)</a></p>
+  </div>
+</div>
+{%- endif %}
+{% endblock %}

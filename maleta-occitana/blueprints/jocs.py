@@ -35,10 +35,17 @@ def _page_context():
     return {"branding": branding, "template": branding["theme"], "texts": settings_manager.get_kiosk_texts()}
 
 
+def _stats():
+    """v1.4 : statistiques -- un jeu retro ne change pas l'ecran de la borne,
+    il est donc signale ici (lancement / retour au centre)."""
+    return current_app.extensions["game_controller"].stats
+
+
 @jocs_bp.route("/")
 def centre():
     if not _running():
         return redirect(url_for("kiosk.index"))
+    _stats().end_rom()
     games = [
         {
             "id": rom["id"], "title": rom["title"], "players": rom["players"],
@@ -60,6 +67,7 @@ def play(rom_id):
     if rom is None or not rom["active"] or rom["system"] not in rom_manager.SYSTEMS:
         return redirect(url_for("jocs.centre"))
     system = rom_manager.SYSTEMS[rom["system"]]
+    _stats().start_rom(rom["title"], system["label"])
     return render_template(
         "jocs/joc.html",
         rom=rom,

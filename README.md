@@ -41,6 +41,21 @@ Depuis la v1.2 elle a, comme la démo, la page **Admin > Exportar /
 Importar** (export, import d'un export de la démo) et, depuis la v1.21,
 l'import de **fichiers CSV** (voir plus bas).
 
+## Statistiques d'utilisation (v1.4)
+
+*Admin > Estadísticas* : ce qui a été joué sur la borne, **heure par heure**
+(24 h), le **temps passé** sur chaque jeu et le **nombre de parties finies**.
+Trois vues :
+
+- vue d'ensemble ;
+- journée (frise de toutes les parties, journal) ;
+- détail par jeu, avec les questions les plus ratées pour la classe.
+
+Encart du jour sur le tableau de bord, export CSV, bouton d'effacement.
+Enregistrement automatique et anonyme (la borne ne sait pas qui joue).
+Le détail est gardé 2 ans. Détail :
+[cahier des charges](docs/cahier-des-charges-statistiques.md).
+
 ## Jeux cachés (Jòcs amagats, v1.3)
 
 Absents du menu des visiteurs, ils se lancent uniquement depuis

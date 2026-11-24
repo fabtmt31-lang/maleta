@@ -1562,6 +1562,28 @@ class GameController:
     def _broadcast_state(self):
         payload = self.get_state_payload()
         self.socketio.emit("state_changed", payload, namespace="/kiosk")
+        # v1.4 : statistiques d'utilisation -- chaque changement d'ecran est
+        # observe (managers/stats_manager.py), sans rien changer aux jeux.
+        stats = getattr(self, "stats", None)
+        if stats is not None:
+            stats.observe(self._stats_snapshot())
+
+    def _stats_snapshot(self):
+        with self._lock:
+            memoria = None
+            if self.memoria:
+                memoria = {key: self.memoria.get(key) for key in ("activity_id", "attempts", "total_pairs")}
+            return {
+                "state": self.state,
+                "epoch": self._epoch,
+                "current_object": dict(self.current_object) if self.current_object else None,
+                "external": dict(self.external) if self.external else None,
+                "troba": dict(self.troba) if self.troba else None,
+                "vertadier": dict(self.vertadier) if self.vertadier else None,
+                "duel": dict(self.duel) if self.duel else None,
+                "quiz": dict(self.quiz) if self.quiz else None,
+                "memoria": memoria,
+            }
 
     def get_state_payload(self):
         """Reconstruit le payload complet a partir de l'etat courant --

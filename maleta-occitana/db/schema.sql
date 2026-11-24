@@ -155,3 +155,49 @@ CREATE TABLE IF NOT EXISTS roms (
     sort_order      INTEGER NOT NULL DEFAULT 0,
     created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- v1.4 : statistiques d'utilisation (Admin > Estadísticas, voir
+-- managers/stats_manager.py). Anonymes : aucune donnee sur les joueurs.
+-- Heures locales de la borne, format "AAAA-MM-JJ HH:MM:SS".
+CREATE TABLE IF NOT EXISTS stats_visits (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at  TEXT NOT NULL,             -- sortie de veille
+    ended_at    TEXT,                      -- retour en veille (NULL = en cours)
+    last_seen   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_stats_visits_started ON stats_visits(started_at);
+
+CREATE TABLE IF NOT EXISTS stats_sessions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    visit_id    INTEGER,
+    activity    TEXT NOT NULL,             -- troba_objecte, vertadier, ... descoberta, aprene, jocs
+    detail      TEXT,                      -- objet consulte, jeu retro...
+    started_at  TEXT NOT NULL,
+    ended_at    TEXT,                      -- NULL = en cours
+    last_seen   TEXT NOT NULL,
+    outcome     TEXT,                      -- 'finie', 'abandon', NULL (pas de notion de fin)
+    score       INTEGER,                   -- bonnes reponses (Memòria : coups joues)
+    total       INTEGER                    -- questions posees (Memòria : paires)
+);
+CREATE INDEX IF NOT EXISTS idx_stats_sessions_started ON stats_sessions(started_at);
+
+CREATE TABLE IF NOT EXISTS stats_answers (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  INTEGER,
+    activity    TEXT NOT NULL,
+    item_id     INTEGER,
+    label       TEXT,
+    correct     INTEGER NOT NULL,          -- 1 juste, 0 faux ou temps ecoule
+    at          TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_stats_answers_at ON stats_answers(at);
+
+-- Totaux par jour, gardes apres l'effacement du detail (plus de 2 ans).
+CREATE TABLE IF NOT EXISTS stats_daily (
+    day         TEXT NOT NULL,             -- AAAA-MM-JJ
+    activity    TEXT NOT NULL,             -- '_visites' pour les visites
+    sessions    INTEGER NOT NULL DEFAULT 0,
+    finished    INTEGER NOT NULL DEFAULT 0,
+    seconds     INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, activity)
+);

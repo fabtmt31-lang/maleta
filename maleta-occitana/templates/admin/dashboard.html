@@ -19,6 +19,26 @@
   <div class="stat-card"><div class="stat-value">{{ nb_games_to_complete }}</div><div class="stat-label">Contenguts a completar</div></div>
 </div>
 
+<!-- v1.4 : encart statistiques du jour (managers/stats_manager.today_summary). -->
+{%- set t = today_stats %}
+<div class="card elev" style="margin-bottom:22px">
+  <div class="card-kicker">Aujourd'hui sur la borne</div>
+  {%- if t.empty %}
+  <p class="muted" style="margin:6px 0 0">Pas encore de partie aujourd'hui. <a href="{{ url_for('admin.stats_overview') }}">Statistiques →</a></p>
+  {%- else %}
+  <div style="display:flex;gap:28px;align-items:flex-end;flex-wrap:wrap;margin-top:6px">
+    <div class="st-tile" style="box-shadow:none;border:0;padding:0;background:none"><div class="v">{{ t.kpis.visits }}</div><div class="l">visite(s)</div></div>
+    <div class="st-tile" style="box-shadow:none;border:0;padding:0;background:none"><div class="v">{{ t.kpis.games }}</div><div class="l">partie(s) ({{ t.kpis.finished }} finie(s))</div></div>
+    <div class="st-tile" style="box-shadow:none;border:0;padding:0;background:none"><div class="v">{{ t.kpis.play }}</div><div class="l">de jeu</div></div>
+    <div style="flex:1;min-width:300px">
+      <div class="st-tile" style="box-shadow:none;border:0;padding:0;background:none"><div class="l">Le plus joué</div></div>
+      {%- for a in t.top %}<div style="white-space:nowrap"><span class="st-bar" style="width:{{ (1.2 * a.bar) | round | int }}px;background:{{ a.color }}"></span>{{ a.label }} <span class="muted">{{ a.duration }}</span></div>{% endfor %}
+    </div>
+    <a class="button btn-secondary" href="{{ url_for('admin.stats_overview', periode='jorn') }}">Toutes les statistiques →</a>
+  </div>
+  {%- endif %}
+</div>
+
 <h2 class="section-title">Los jòcs sus la borne</h2>
 <div class="games">
   {% for game in games %}

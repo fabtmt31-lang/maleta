@@ -1,0 +1,92 @@
+{% extends "admin/base.html" %}
+{% import 'admin/_stats.html' as st %}
+{% block title %}Estadísticas · {{ data.info.label }}{% endblock %}
+{% block content %}
+<!-- v1.4 : statistiques, detail d'un jeu (managers/stats_manager.activity_detail). -->
+<div class="page-header">
+  <div><div class="page-eyebrow"><a href="{{ url_for('admin.stats_overview', periode=periode) }}">Estadísticas</a> · Détail par jeu</div>
+    <h1>{{ data.info.label }}</h1></div>
+  <div class="page-header-actions">
+    <form method="get" onsubmit="return false">
+      <select class="input" name="activity" style="width:auto"
+              onchange="location.href='{{ url_for('admin.stats_activity', activity='_') [:-1] }}' + this.value + '?periode={{ periode }}'">
+        {%- for key, a in activities.items() %}<option value="{{ key }}" {{ 'selected' if key == activity }}>{{ a.label }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+<div class="st-filters">
+  {{ st.periods_bar(periods, periode, 'admin.stats_activity', {'activity': activity}) }}
+  <span class="muted">{{ period_label }}</span>
+  {{ st.tabs('joc', periode) }}
+</div>
+
+<div class="st-tiles">
+  <div class="st-tile"><div class="v">{{ data.count }}</div><div class="l">{{ 'Consultations' if activity == 'descoberta' else 'Parties lancées' }}</div></div>
+  {%- if data.finished is not none %}
+  <div class="st-tile"><div class="v">{{ data.finished }}</div><div class="l">Parties finies</div><div class="d">{% if data.finished_rate is not none %}{{ data.finished_rate }} %{% endif %}</div></div>
+  {%- endif %}
+  <div class="st-tile"><div class="v">{{ data.play }}</div><div class="l">Temps total</div></div>
+  <div class="st-tile"><div class="v">{{ data.average }}</div><div class="l">Durée moyenne</div></div>
+  {%- if data.result_value %}<div class="st-tile"><div class="v">{{ data.result_value }}</div><div class="l">{{ data.result_label }}</div><div class="d">parties finies</div></div>{% endif %}
+</div>
+
+{%- if not data.count %}
+<div class="card elev" style="margin-top:22px"><div class="st-empty">Pas encore de partie de ce jeu sur cette période.</div></div>
+{%- else %}
+<div class="st-grid">
+  {%- if data.distribution %}
+  <div class="card elev">
+    <div class="card-kicker">Résultats</div>
+    <div class="card-title">Répartition des parties finies selon la part de bonnes réponses</div>
+    <svg class="st-chart" viewBox="0 0 460 170" role="img" aria-label="Répartition des résultats">
+      {%- for b in data.distribution %}
+      {%- set h = b.height * 1.2 %}
+      <rect data-hover x="{{ 20 + loop.index0 * 39 }}" y="{{ 145 - h }}" width="30" height="{{ [h, 0.5] | max }}" rx="4" fill="{{ data.color }}"><title>{{ b.label }} de bonnes réponses : {{ b.count }} partie(s)</title></rect>
+      <text x="{{ 35 + loop.index0 * 39 }}" y="162" text-anchor="middle">{{ b.label | replace(' %', '') }}</text>
+      {%- if b.count %}<text x="{{ 35 + loop.index0 * 39 }}" y="{{ 140 - h }}" text-anchor="middle">{{ b.count }}</text>{% endif %}
+      {%- endfor %}
+    </svg>
+    <p class="st-note">Nombre de parties finies pour chaque part de bonnes réponses (en %, de 0 à 100).</p>
+  </div>
+  {%- endif %}
+  {%- if activity in ('quiz_calandreta', 'vertadier', 'duel_occitan', 'troba_objecte') %}
+  <div class="card elev">
+    <div class="card-kicker">Pour la classe</div>
+    <div class="card-title">{{ 'Objets les plus ratés' if activity == 'troba_objecte' else ('Mots les plus ratés' if activity == 'vertadier' else 'Questions les plus ratées') }}</div>
+    {%- if data.missed %}
+    <table class="admin-table">
+      <thead><tr><th>{{ 'Objet' if activity == 'troba_objecte' else ('Mot' if activity == 'vertadier' else 'Question') }}</th><th>Posé(e)</th><th>Réussi(e)</th></tr></thead>
+      <tbody>
+      {%- for m in data.missed %}
+        <tr><td>{{ m.label }}</td><td>{{ m.asked }}</td><td class="st-nw"><span class="st-bar" style="width:{{ (m.rate * 0.6) | round | int + 2 }}px;background:#e34948"></span>{{ m.rate }} %</td></tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+    <p class="st-note">Posé(e) au moins 3 fois sur la période{% if activity == 'duel_occitan' %} (chaque joueur compte){% endif %}{% if activity == 'troba_objecte' %} (chaque essai compte){% endif %}.</p>
+    {%- else %}<p class="muted">Pas encore assez de réponses (au moins 3 par {{ 'objet' if activity == 'troba_objecte' else 'question' }}).</p>{% endif %}
+  </div>
+  {%- endif %}
+  {%- if data.details %}
+  <div class="card elev {{ 'st-wide' if not data.distribution }}">
+    <div class="card-kicker">{{ 'Descoberta' if activity == 'descoberta' else 'Par jeu' }}</div>
+    <div class="card-title">{{ 'Objets les plus posés sur la borne' if activity == 'descoberta' else 'Temps et lancements' }}</div>
+    <table class="admin-table">
+      <thead><tr><th>{{ 'Objet' if activity == 'descoberta' else 'Jeu' }}</th><th>{{ 'Consultations' if activity == 'descoberta' else 'Temps' }}</th><th>{{ 'Temps' if activity == 'descoberta' else 'Lancements' }}</th></tr></thead>
+      <tbody>
+      {%- for d in data.details %}
+        <tr><td><strong>{{ d.label }}</strong></td>
+          {%- if activity == 'descoberta' %}
+          <td class="st-nw"><span class="st-bar" style="width:{{ (1.2 * d.bar) | round | int }}px;background:{{ data.color }}"></span>{{ d.count }} fois</td><td>{{ d.duration }}</td>
+          {%- else %}
+          <td class="st-nw"><span class="st-bar" style="width:{{ (1.2 * d.bar) | round | int }}px;background:{{ data.color }}"></span>{{ d.duration }}</td><td>{{ d.count }}</td>
+          {%- endif %}</tr>
+      {%- endfor %}
+      </tbody>
+    </table>
+    {%- if activity == 'jocs' %}<p class="st-note">Jeux rétro : pas de « partie finie » (l'émulateur ne le sait pas), seulement le temps et le nombre de lancements.</p>{% endif %}
+  </div>
+  {%- endif %}
+</div>
+{%- endif %}
+{% endblock %}

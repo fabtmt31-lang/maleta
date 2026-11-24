@@ -1,6 +1,6 @@
 # Statistiques d'utilisation de la borne — proposition (avant développement)
 
-Statut : **proposition, rien n'est développé**. Maquettes (données fictives) dans
+Statut : **réalisé en v1.4** (choix de Fabien : tout comme proposé, plage horaire de **24 h**, voir §6). Maquettes (données fictives) dans
 [`docs/maquettes/statistiques/`](maquettes/statistiques/).
 
 ## 1. Ce qu'on veut savoir
@@ -108,3 +108,33 @@ tableaux), et un tableau sous chaque graphique, pour la lisibilité.
 6. **Remise à zéro** : un bouton « Effacer les statistiques », avec confirmation
    et sauvegarde CSV avant (utile après une semaine de tests) ?
 7. **Visites** : à garder dans les chiffres clés, ou seulement les parties ?
+
+## 6. Réalisé (v1.4)
+
+Toutes les réponses du §5 acceptées telles que proposées, sauf la plage horaire.
+
+- **Plage horaire : 24 h.** Le graphique heure par heure et la grille jour ×
+  heure couvrent toute la journée. La frise d'une journée se resserre sur les
+  heures utilisées, et au moins sur 8 h – 18 h.
+- **Enregistrement** : `managers/stats_manager.py` (`StatsRecorder`), appelé
+  depuis `GameController._broadcast_state` avec un instantané de l'état.
+  - Nouvelle partie = nouvelle manche (`_epoch`).
+  - Réponse = passage du retour visuel (`feedback`) à juste / faux / temps
+    écoulé.
+  - Duèl : une réponse par joueur.
+  - Tròba : chaque essai compte.
+- **Jeux rétro** : signalés par `blueprints/jocs.py` (`start_rom` à
+  l'ouverture d'un jeu, `end_rom` au retour au centre).
+- **Tables** : `stats_visits`, `stats_sessions`, `stats_answers`,
+  `stats_daily` (totaux par jour gardés après la purge des 2 ans).
+- **Écarts avec les maquettes** :
+  - Le résultat moyen est exprimé en **% de bonnes réponses** (les manches
+    n'ont pas toutes le même nombre de questions) et, pour les Memòria, en
+    **coups**.
+  - L'info au survol est la bulle native du navigateur.
+- **Vérifié** :
+  - partie de Quiz jouée au clavier sur l'écran de la borne (version démo),
+    retrouvée « finie, 2 / 3 » dans le journal ;
+  - tests automatiques : partie finie ou abandonnée, consultation d'objet,
+    inactivité non comptée, coupure de courant, jeux rétro, pages, CSV,
+    effacement, purge.

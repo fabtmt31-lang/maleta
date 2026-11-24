@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.37** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.4** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -406,6 +406,36 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.4** (24/11/2026) — **statistiques d'utilisation** (demandées par
+  Fabien, maquettes validées : `docs/cahier-des-charges-statistiques.md`).
+  Nouvelle page **Admin > Estadísticas** :
+  - **Vue d'ensemble** (aujourd'hui, 7 jours, 30 jours, tout) :
+    - visites, parties lancées, parties finies, temps de jeu, durée d'une
+      visite ;
+    - minutes de jeu **heure par heure** (24 h) par jeu ;
+    - grille jour de la semaine × heure ;
+    - tableau par jeu (temps, parties, finies, durée moyenne, résultat
+      moyen).
+  - **Journée heure par heure** :
+    - frise de toutes les parties (pleine = finie, hachurée = abandonnée) ;
+    - détail de chaque heure ;
+    - journal des parties.
+  - **Détail par jeu** : répartition des résultats, **questions / mots /
+    objets les plus ratés**, objets les plus posés, temps par jeu rétro.
+  - Encart **« Aujourd'hui sur la borne »** sur le tableau de bord.
+  - **Export CSV** et bouton **Effacer** (copie CSV gardée dans
+    `sauvegardes/`).
+
+  L'enregistrement est automatique et anonyme (heure, jeu, durée, fin,
+  score). Une partie est **finie** quand l'écran de fin est atteint ; elle est
+  **abandonnée** sur retour au menu, Échap ou mise en veille (le temps
+  d'inactivité n'est pas compté). Le détail est gardé 2 ans, puis seuls les
+  totaux par jour restent. Les statistiques ne sont pas incluses dans
+  *Exportar / Importar*. Code : `managers/stats_manager.py` (observe les
+  changements d'écran de `game_controller`, sans toucher aux jeux).
+
+  Corrigé au passage : texte invisible des liens en bouton secondaire de
+  l'admin.
 - **v1.37** (20/11/2026) — **mise à jour depuis GitHub** (demandée par
   Fabien). Nouvelle page **Admin > Mesa a jorn** : « Chercher une mise à
   jour » compare la version installée à la dernière archive de la borne
