@@ -31,16 +31,6 @@ Les images et les sons des objets s'ajoutent ensuite depuis l'admin.
   actif                oui / non (vide = oui)
   ordre                facultatif
 
-== duel_questions.csv : Duèl Occitan ==
-  question             obligatoire
-  reponse_a            obligatoire
-  reponse_b            obligatoire
-  bonne_reponse        obligatoire : A ou B
-  explication          facultatif
-  source               facultatif
-  actif                oui / non (vide = oui)
-  ordre                facultatif
-
 == quiz_questions.csv : Quiz Calandreta ==
   question             obligatoire
   reponse_a            obligatoire

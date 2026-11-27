@@ -117,7 +117,7 @@ sudo -u maleta /opt/maleta-occitana/.venv/bin/python /opt/maleta-occitana/import
 |---|---|
 | `--apercu` | Affiche le nombre d'éléments par section, n'importe rien |
 | `--remplacer` | Efface d'abord le contenu des sections présentes dans les fichiers (sauvegarde complète juste avant, dans `sauvegardes/`) ; un fichier illisible annule tout |
-| `--sections objects,quiz_questions` | N'importe que ces sections (`objects`, `vertadier_words`, `duel_questions`, `quiz_questions`, `villages`, `media_items`) |
+| `--sections objects,quiz_questions` | N'importe que ces sections (`objects`, `vertadier_words`, `quiz_questions`, `villages`, `media_items` ; `duel_questions`, supprimée en v1.41, est ignorée) |
 | `--reglages` | Importe aussi l'apparence et les textes de la borne |
 | `--sans-tags` | N'importe pas les tags NFC réels (un export de démo n'en contient pas) |
 
@@ -278,7 +278,7 @@ notice (`LISEZMOI-CSV.txt`) qui décrit chaque colonne :
 | Fichier | Colonnes (obligatoires en gras) |
 |---|---|
 | `quiz_questions.csv` | **question**, **reponse_a**, **reponse_b**, **reponse_c**, **bonne_reponse** (A, B ou C), explication, source, actif, ordre |
-| `duel_questions.csv` | **question**, **reponse_a**, **reponse_b**, **bonne_reponse** (A ou B), explication, source, actif, ordre |
+| `duel_questions.csv` | *(jusqu'à la v1.4 seulement)* **question**, **reponse_a**, **reponse_b**, **bonne_reponse** (A ou B), explication, source, actif, ordre. Depuis la **v1.41**, le Duèl utilise les questions du Quiz : ce fichier est ignoré à l'import (avertissement, pas d'erreur). |
 | `vertadier_words.csv` | **mot_francais**, **vient_de_l_occitan** (oui / non), explication, source, actif, ordre |
 | `villages.csv` | **nom_francais**, **nom_occitan**, source, actif, ordre |
 | `objects.csv` | **mot_occitan**, **mot_francais**, categorie, image, son, actif, ordre, tags_nfc |

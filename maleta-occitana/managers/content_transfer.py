@@ -85,14 +85,6 @@ SECTIONS = [
         "files": {},
     },
     {
-        "name": "duel_questions", "table": "duel_questions", "label": "Duèl Occitan",
-        "fields": ["question_fr", "choice_a", "choice_b", "correct_choice", "explanation", "source", "active", "sort_order"],
-        "required": ["question_fr", "choice_a", "choice_b", "correct_choice"],
-        "key": ["question_fr"],
-        "files": {},
-        "choices": ("a", "b"),
-    },
-    {
         "name": "quiz_questions", "table": "quiz_questions", "label": "Quiz Calandreta",
         "fields": ["question_fr", "choice_a", "choice_b", "choice_c", "correct_choice", "explanation", "source", "active", "sort_order"],
         "required": ["question_fr", "choice_a", "choice_b", "choice_c", "correct_choice"],
@@ -116,6 +108,14 @@ SECTIONS = [
     },
 ]
 SECTIONS_BY_NAME = {s["name"]: s for s in SECTIONS}
+
+# v1.41 : sections qui n'existent plus. Le Duèl Occitan utilise les questions
+# du Quiz Calandreta : les questions propres au Duèl d'un ancien export (ou
+# d'un fichier duel.csv) sont ignorees, avec un avertissement, jamais une
+# erreur.
+IGNORED_SECTIONS = {
+    "duel_questions": "Duèl Occitan : questions ignorées (le Duèl utilise désormais celles du Quiz Calandreta)",
+}
 
 # Reglages exportables (Configuration) : apparence et textes de la borne.
 # Jamais le PIN ni les mappings manette/clavier.
@@ -142,16 +142,6 @@ CSV_COLUMNS = {
         ("is_occitan", "vient_de_l_occitan", "obligatoire : oui / non"),
         ("explanation", "explication", "facultatif : affichee apres la reponse"),
         ("source", "source", "facultatif : reference (CNRTL, IEO...)"),
-        ("active", "actif", "oui / non (vide = oui)"),
-        ("sort_order", "ordre", "facultatif"),
-    ],
-    "duel_questions": [
-        ("question_fr", "question", "obligatoire"),
-        ("choice_a", "reponse_a", "obligatoire"),
-        ("choice_b", "reponse_b", "obligatoire"),
-        ("correct_choice", "bonne_reponse", "obligatoire : A ou B"),
-        ("explanation", "explication", "facultatif"),
-        ("source", "source", "facultatif"),
         ("active", "actif", "oui / non (vide = oui)"),
         ("sort_order", "ordre", "facultatif"),
     ],
@@ -409,11 +399,13 @@ def read_csv(filename, raw, section_name=None):
     headers = [_normalize_header(h) for h in next(reader)]
 
     section_name = section_name or _guess_section(filename, headers)
+    if section_name in IGNORED_SECTIONS:
+        return {"format": FORMAT_NAME, "format_version": FORMAT_VERSION, "source": "csv", section_name: []}, None
     section = SECTIONS_BY_NAME.get(section_name)
     if section is None:
         raise ImportError_(
             f"{filename} : type de contenu non reconnu. Garde dans le nom du fichier « quiz », "
-            "« duel », « vertadier », « vilatge », « objet » ou « media », ou choisis le type à l'import."
+            "« vertadier », « vilatge », « objet » ou « media », ou choisis le type à l'import."
         )
     mapping = _header_mapping(section_name)
     columns = [mapping.get(h) for h in headers]
@@ -583,6 +575,7 @@ def import_bundles(bundles, sections, mode="merge", import_settings=False, impor
         # Apparence/textes : seulement depuis un export complet, jamais un CSV.
         with_settings = import_settings and data.get("source") != "csv"
         merge_reports(report, _import_one(data, archive, sections, with_settings, import_tags))
+    report["warnings"] = list(dict.fromkeys(report["warnings"]))  # meme avertissement une seule fois
     return report
 
 
@@ -591,6 +584,9 @@ def _import_one(data, archive, sections, import_settings, import_tags):
     db = get_db()
     report = {"sections": {}, "files": 0, "warnings": []}
     file_cache = {}
+    for name, message in IGNORED_SECTIONS.items():
+        if name in data:
+            report["warnings"].append(message + ".")
 
     def import_file(kind, filename):
         """Copie un media de l'archive vers le dossier local. Renvoie le nom

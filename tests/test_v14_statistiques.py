@@ -172,3 +172,56 @@ def test_split_by_hour():
     row = {"started_at": "2026-11-24 09:50:00", "ended_at": "2026-11-24 10:20:00"}
     assert [(h.hour, s) for h, s in sm._split_by_hour(row)] == [(9, 600), (10, 1200)]
     assert sm.format_duration(59) == "59 s" and sm.format_duration(600) == "10 min" and sm.format_duration(4000) == "1 h 06"
+
+
+# --- v1.41 : le Duèl utilise les questions du Quiz ----------------------------------
+
+def test_duel_question_from_quiz():
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "maleta-occitana"))
+    import random
+    from managers.game_controller import duel_question_from_quiz
+    question = {"id": 7, "question_fr": "Q ?", "choice_a": "bon", "choice_b": "faux 1", "choice_c": "faux 2",
+                "correct_choice": "a", "explanation": "car"}
+    rng = random.Random(1)
+    seen_wrong, seen_position = set(), set()
+    for _ in range(60):
+        duel = duel_question_from_quiz(question, rng)
+        pair = [duel["choice_a"], duel["choice_b"]]
+        assert duel[f"choice_{duel['correct_choice']}"] == "bon" and "bon" in pair and len(set(pair)) == 2
+        seen_wrong.add(next(c for c in pair if c != "bon"))
+        seen_position.add(duel["correct_choice"])
+        assert duel["id"] == 7 and duel["explanation"] == "car"
+    assert seen_wrong == {"faux 1", "faux 2"} and seen_position == {"a", "b"}
+
+
+def test_duel_plays_quiz_questions_and_ignores_old_duel_content(tmp_path):
+    app, client, controller, stats = _setup(tmp_path)
+    controller.start_duel()
+    assert controller.state == "menu" and "Quiz Calandreta" in controller.menu_notice  # pas de question
+    _add_quiz(client)
+    controller.start_duel()
+    assert controller.state == "duel" and len(controller.duel["questions"]) == 3
+    assert all(q["question_fr"].startswith("Question") for q in controller.duel["questions"])
+    controller.go_to_menu()
+    # Anciennes pages du Duèl -> liste du Quiz ; plus d'entree Duèl dans le menu admin
+    page = client.get("/admin/duel/new", follow_redirects=True).get_data(as_text=True)
+    assert "Le Duèl Occitan utilise désormais les questions du Quiz Calandreta" in page
+    assert "Quiz &amp; Duèl" in page and 'href="/admin/duel"' not in page
+
+    # Import : un ancien export ou un duel.csv ne provoque pas d'erreur, juste un avertissement.
+    import json, zipfile
+    old = {"format": "maleta-occitana-contenu", "format_version": 1, "source": "demo",
+           "duel_questions": [{"question_fr": "D ?", "choice_a": "a", "choice_b": "b", "correct_choice": "a"}],
+           "quiz_questions": [{"question_fr": "Nouvelle ?", "choice_a": "a", "choice_b": "b", "choice_c": "c",
+                               "correct_choice": "c"}]}
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("maleta-contenu.json", json.dumps(old))
+    page = client.post("/admin/transfer/import", data={
+        "bundle": [(io.BytesIO(buf.getvalue()), "ancien.zip"),
+                   (io.BytesIO("question;reponse_a;reponse_b;bonne_reponse\nD ?;a;b;A\n".encode()), "duel.csv")],
+        "mode": "merge", "section_quiz_questions": "1", "section_duel_questions": "1"},
+        content_type="multipart/form-data", follow_redirects=True).get_data(as_text=True)
+    assert "questions ignorées" in page and "Erreur" not in page
+    with app.app_context():
+        assert len(sys.modules["managers.quiz_manager"].list_questions()) == 4

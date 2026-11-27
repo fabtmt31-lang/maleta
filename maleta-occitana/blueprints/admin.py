@@ -19,7 +19,7 @@ from flask import (
 
 import config
 from managers import (
-    content_transfer, duel_manager, hidden_games, update_manager, stats_manager, rom_manager, wifi_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
+    content_transfer, hidden_games, update_manager, stats_manager, rom_manager, wifi_manager, media_manager, mediatheque_manager, object_manager, quiz_manager, settings_manager,
     vertadier_manager, village_manager,
 )
 from managers.tag_reader import SimulatedTagReader
@@ -91,7 +91,6 @@ def inject_sidebar_counts():
             "objects": len(object_manager.list_objects()),
             "media": len(media_manager.list_media()),
             "vertadier": len(vertadier_manager.list_words()),
-            "duel": len(duel_manager.list_questions()),
             "villages": len(village_manager.list_villages()),
             "quiz": len(quiz_manager.list_questions()),
         }
@@ -135,7 +134,6 @@ def dashboard():
     objects = object_manager.list_objects()
     media = media_manager.list_media()
     vertadier_words = vertadier_manager.list_words()
-    duel_questions = duel_manager.list_questions()
     villages = village_manager.list_villages()
     quiz_questions = quiz_manager.list_questions()
     disk = mediatheque_manager.disk_usage()
@@ -144,7 +142,6 @@ def dashboard():
     nb_objects_tagged = len(object_manager.list_objects_with_tag(only_active=True))
     nb_media_active = len([m for m in media if m["active"]])
     nb_vertadier_active = len([w for w in vertadier_words if w["active"]])
-    nb_duel_active = len([q for q in duel_questions if q["active"]])
     nb_villages_active = len([v for v in villages if v["active"]])
     nb_quiz_active = len([q for q in quiz_questions if q["active"]])
     memoria_min = config.MEMORIA_PAIR_COUNT_SMALL
@@ -163,8 +160,9 @@ def dashboard():
         game("vertadier", "Ven de l'occitan ?", nb_vertadier_active, "mots",
              nb_vertadier_active >= 1, "admin.vertadier_list", "admin.vertadier_new",
              "au moins 1 mot actif"),
-        game("duel_occitan", "Duèl Occitan", nb_duel_active, "questions",
-             nb_duel_active >= 1, "admin.duel_list", "admin.duel_new",
+        # v1.41 : le Duèl utilise les questions du Quiz Calandreta.
+        game("duel_occitan", "Duèl Occitan", nb_quiz_active, "questions du Quiz",
+             nb_quiz_active >= 1, "admin.quiz_list", "admin.quiz_new",
              "au moins 1 question active"),
         game("memoria", "Memòria", nb_objects_active, "objèctes actius",
              nb_objects_active >= memoria_min, "admin.objects_list", "admin.object_new",
@@ -607,77 +605,17 @@ def _save_vertadier_form(word_id=None):
         vertadier_manager.update_word(word_id, word_fr, is_occitan, explanation, source, active)
 
 
-# --- Duèl Occitan (v0.7, jeu a 2 joueurs) ------------------------------------
-#
-# Contenu volontairement vide a la livraison -- meme principe que
-# Ven de l'occitan : voir duel_manager.py et concept-borne-interactive.md,
-# le contenu doit etre verifie avec une source fiable avant d'etre saisi ici,
-# jamais improvise.
+# --- Duèl Occitan --------------------------------------------------------------
+# v1.41 : plus de questions propres au Duèl -- il utilise celles du Quiz
+# Calandreta (game_controller.duel_question_from_quiz). Les anciennes adresses
+# menent a la liste du Quiz.
 
 @admin_bp.route("/duel")
+@admin_bp.route("/duel/<path:rest>", methods=["GET", "POST"])
 @login_required
-def duel_list():
-    questions = duel_manager.list_questions()
-    return render_template("admin/duel_list.html", questions=questions)
-
-
-@admin_bp.route("/duel/new", methods=["GET", "POST"])
-@login_required
-def duel_new():
-    if request.method == "POST":
-        _save_duel_form()
-        return redirect(url_for("admin.duel_list"))
-    return render_template("admin/duel_form.html", question=None)
-
-
-@admin_bp.route("/duel/<int:question_id>/edit", methods=["GET", "POST"])
-@login_required
-def duel_edit(question_id):
-    question = duel_manager.get_question(question_id)
-    if question is None:
-        flash("Question introuvable")
-        return redirect(url_for("admin.duel_list"))
-    if request.method == "POST":
-        _save_duel_form(question_id=question_id)
-        return redirect(url_for("admin.duel_list"))
-    return render_template("admin/duel_form.html", question=question)
-
-
-@admin_bp.route("/duel/<int:question_id>/delete", methods=["POST"])
-@login_required
-def duel_delete(question_id):
-    duel_manager.delete_question(question_id)
-    flash("Question supprimée")
-    return redirect(url_for("admin.duel_list"))
-
-
-@admin_bp.route("/duel/<int:question_id>/toggle_active", methods=["POST"])
-@login_required
-def duel_toggle_active(question_id):
-    question = duel_manager.get_question(question_id)
-    if question is None:
-        # v1.03 : element supprime entre-temps (page perimee, 2e onglet) -- evitait une erreur 500
-        flash("Élément introuvable (déjà supprimé ?)")
-        return redirect(url_for("admin.duel_list"))
-    duel_manager.set_question_active(question_id, not question["active"])
-    return redirect(url_for("admin.duel_list"))
-
-
-def _save_duel_form(question_id=None):
-    question_fr = request.form.get("question_fr", "").strip()
-    choice_a = request.form.get("choice_a", "").strip()
-    choice_b = request.form.get("choice_b", "").strip()
-    correct_choice = request.form.get("correct_choice", "a")
-    explanation = request.form.get("explanation", "").strip() or None
-    source = request.form.get("source", "").strip() or None
-    active = request.form.get("active") == "on"
-
-    if question_id is None:
-        duel_manager.create_question(question_fr, choice_a, choice_b, correct_choice, explanation, source)
-    else:
-        duel_manager.update_question(
-            question_id, question_fr, choice_a, choice_b, correct_choice, explanation, source, active
-        )
+def duel_list(rest=None):
+    flash("Le Duèl Occitan utilise désormais les questions du Quiz Calandreta.")
+    return redirect(url_for("admin.quiz_list"))
 
 
 # --- Memòria vilatge (v0.8) ---------------------------------------------------

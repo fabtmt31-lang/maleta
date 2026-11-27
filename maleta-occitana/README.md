@@ -5,7 +5,7 @@ connaître l'occitan et les écoles Calandreta sur un stand, de façon ludique
 et interactive. Concept complet dans le projet claude.ai « calandreta »,
 fichier `concept-borne-interactive.md`.
 
-**Version de cette archive : v1.4** (voir « Versions » en bas de ce fichier).
+**Version de cette archive : v1.41** (voir « Versions » en bas de ce fichier).
 
 > **Anciennement « La Malissa Occitana »** — l'appli, le dossier, le service
 > systemd, les variables d'environnement (`MALETA_*`) et le nom de la base de
@@ -406,6 +406,20 @@ ponctuel (comme les 5 points de la v0.6) avance seulement le deuxième
 chiffre (`v0.6` → `v0.61`, `v0.62`...). Objectif : que le numéro de version
 donne une idée de l'ampleur du changement sans avoir à ouvrir le changelog.
 
+- **v1.41** (27/11/2026) — **le Duèl Occitan utilise les questions du Quiz
+  Calandreta** (demandé par Fabien : une seule liste de questions à écrire).
+  - Pour chaque question du Duèl, le jeu garde la bonne réponse et **une des
+    deux mauvaises, tirée au hasard**, et place les deux réponses dans un
+    ordre lui aussi tiré au hasard.
+  - Les questions propres au Duèl ne servent plus : leur page d'admin
+    disparaît (l'entrée du menu devient « Quiz & Duèl »), elles ne sont plus
+    exportées, et la table reste dans la base sans être utilisée.
+  - **Import** (admin et `importer_contenu.py`) : les questions du Duèl d'un
+    ancien export, un fichier `duel.csv` ou `--sections duel_questions` sont
+    **ignorés avec un avertissement**, jamais une erreur ; le reste est
+    importé normalement.
+  - Les boutons de la manette restent propres à chaque jeu (Duèl : 2 joueurs
+    × 2 réponses).
 - **v1.4** (24/11/2026) — **statistiques d'utilisation** (demandées par
   Fabien, maquettes validées : `docs/cahier-des-charges-statistiques.md`).
   Nouvelle page **Admin > Estadísticas** :

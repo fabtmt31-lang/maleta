@@ -162,7 +162,7 @@ import threading
 import time
 
 import config
-from managers import duel_manager, media_manager, object_manager, quiz_manager, vertadier_manager, village_manager
+from managers import media_manager, object_manager, quiz_manager, vertadier_manager, village_manager
 
 logger = logging.getLogger(__name__)
 
@@ -320,6 +320,26 @@ def _time_left(game):
     if deadline is None or game.get("deadline_index") != game.get("index"):
         return None
     return round(max(0.0, deadline - time.monotonic()), 2)
+
+def duel_question_from_quiz(question, rng=random):
+    """v1.41 : question du Quiz (3 reponses) -> question du Duèl (2 reponses) :
+    la bonne reponse et UNE des deux mauvaises, tiree au hasard, dans un ordre
+    lui aussi tire au hasard (la bonne reponse n'est pas toujours en A)."""
+    correct = question["correct_choice"]
+    wrong = rng.choice([c for c in ("a", "b", "c") if c != correct])
+    pair = [question[f"choice_{correct}"], question[f"choice_{wrong}"]]
+    correct_first = rng.random() < 0.5
+    if not correct_first:
+        pair.reverse()
+    return {
+        "id": question["id"],
+        "question_fr": question["question_fr"],
+        "choice_a": pair[0],
+        "choice_b": pair[1],
+        "correct_choice": "a" if correct_first else "b",
+        "explanation": question.get("explanation"),
+    }
+
 
 class GameController:
     def __init__(self, socketio, app):
@@ -990,17 +1010,19 @@ class GameController:
 
     def start_duel(self):
         self._cancel_all_timers()
+        # v1.41 : le Duèl utilise les questions du Quiz Calandreta (une seule
+        # liste a saisir) -- voir duel_question_from_quiz().
         with self.app.app_context():
-            eligible = [dict(q) for q in duel_manager.list_questions(only_active=True)]
+            eligible = [dict(q) for q in quiz_manager.list_questions(only_active=True)]
 
         if not eligible:
             # Pas encore de questions saisies depuis l'admin : meme principe
             # que Tròba l'objècte sans objet tague / Vertadièr sans mot.
-            self.go_to_menu(notice="Pas encara de questions per lo Duèl Occitan.")
+            self.go_to_menu(notice="Pas encara de questions (Quiz Calandreta) per lo Duèl Occitan.")
             return
 
         random.shuffle(eligible)
-        questions = eligible[: config.DUEL_ROUND_QUESTION_COUNT]
+        questions = [duel_question_from_quiz(q) for q in eligible[: config.DUEL_ROUND_QUESTION_COUNT]]
 
         with self._lock:
             self._bump_epoch_locked()

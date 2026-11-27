@@ -55,15 +55,17 @@ def test_unknown_csv_type_is_reported(tmp_path):
 
 def test_exported_csv_reimports(tmp_path):
     _, demo = make_client(tmp_path / "demo", demo=True)
-    demo.post("/admin/duel/new", data={"question_fr": "D ?", "choice_a": "a", "choice_b": "b", "correct_choice": "b"})
+    demo.post("/admin/quiz/new", data={"question_fr": "Q ?", "choice_a": "a", "choice_b": "b", "choice_c": "c",
+                                       "correct_choice": "b"})
     demo.post("/admin/vertadier/new", data={"word_fr": "Mot", "is_occitan": "on"})
     archive = zipfile.ZipFile(io.BytesIO(demo.get("/admin/transfer/export").data))
-    assert archive.read("tableur/duel_questions.csv").decode("utf-8-sig").startswith("question;reponse_a")
+    assert archive.read("tableur/quiz_questions.csv").decode("utf-8-sig").startswith("question;reponse_a")
+    assert "tableur/duel_questions.csv" not in archive.namelist()  # v1.41 : plus de section Duèl
 
     app, client = make_client(tmp_path / "pc", demo=False)
     import_files(client, [(name.split("/")[-1], archive.read(name)) for name in archive.namelist()
                           if name.startswith("tableur/")])
-    assert count(app, "duel_questions") == 1
+    assert count(app, "quiz_questions") == 1
     assert count(app, "vertadier_words") == 1
 
 

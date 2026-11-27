@@ -41,14 +41,11 @@
         <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.vertadier_list', 'admin.vertadier_new', 'admin.vertadier_edit') }}" href="{{ url_for('admin.vertadier_list') }}">
           {{ m.icon('check', sw=2) }}<span>Ven de l'occitan ?</span> <span class="sidebar-badge {{ 'sidebar-badge-accent-2' if sidebar_counts.vertadier == 0 }}">{{ sidebar_counts.vertadier }}</span>
         </a>
-        <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.duel_list', 'admin.duel_new', 'admin.duel_edit') }}" href="{{ url_for('admin.duel_list') }}">
-          {{ m.icon('people', sw=2) }}<span>Duèl Occitan</span> <span class="sidebar-badge {{ 'sidebar-badge-accent-2' if sidebar_counts.duel == 0 }}">{{ sidebar_counts.duel }}</span>
-        </a>
         <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.villages_list', 'admin.village_new', 'admin.village_edit') }}" href="{{ url_for('admin.villages_list') }}">
           {{ m.icon('houses', sw=2) }}<span>Vilatges (Memòria)</span> <span class="sidebar-badge {{ 'sidebar-badge-accent-2' if sidebar_counts.villages == 0 }}">{{ sidebar_counts.villages }}</span>
         </a>
         <a class="sidebar-link {{ 'active' if request.endpoint in ('admin.quiz_list', 'admin.quiz_new', 'admin.quiz_edit') }}" href="{{ url_for('admin.quiz_list') }}">
-          {{ m.icon('question', sw=2) }}<span>Quiz Calandreta</span> <span class="sidebar-badge {{ 'sidebar-badge-accent-2' if sidebar_counts.quiz == 0 }}">{{ sidebar_counts.quiz }}</span>
+          {{ m.icon('question', sw=2) }}<span>Quiz &amp; Duèl</span> <span class="sidebar-badge {{ 'sidebar-badge-accent-2' if sidebar_counts.quiz == 0 }}">{{ sidebar_counts.quiz }}</span>
         </a>
       </div>
 

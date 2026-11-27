@@ -27,8 +27,6 @@ def test_mouse_pointer(tmp_path):
     app, client = make_client(tmp_path / "demo", demo=True)
     client.post("/admin/quiz/new", data={
         "question_fr": "Q ?", "choice_a": "a", "choice_b": "b", "choice_c": "c", "correct_choice": "a"})
-    client.post("/admin/duel/new", data={
-        "question_fr": "D ?", "choice_a": "a", "choice_b": "b", "correct_choice": "b"})
     controller = app.extensions["game_controller"]
     config = sys.modules["config"]
     config.ACTION_LOCKOUT_SECONDS = 0  # pas de verrou d'entree entre deux clics du test

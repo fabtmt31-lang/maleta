@@ -41,6 +41,14 @@ Depuis la v1.2 elle a, comme la démo, la page **Admin > Exportar /
 Importar** (export, import d'un export de la démo) et, depuis la v1.21,
 l'import de **fichiers CSV** (voir plus bas).
 
+## Quiz et Duèl : une seule liste de questions (v1.41)
+
+Le **Duèl Occitan** (2 joueurs) utilise les questions du **Quiz Calandreta**
+(*Admin > Quiz & Duèl*). Pour chaque question, il garde la bonne réponse et
+une des deux mauvaises, tirée au hasard. Les questions propres au Duèl des
+anciens exports sont ignorées à l'import, sans erreur. Les boutons de la
+manette restent propres à chaque jeu.
+
 ## Statistiques d'utilisation (v1.4)
 
 *Admin > Estadísticas* : ce qui a été joué sur la borne, **heure par heure**

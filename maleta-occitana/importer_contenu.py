@@ -14,7 +14,7 @@ medias copies lui appartiennent) :
         /opt/maleta-occitana/importer_contenu.py /tmp/maleta-demo-contenu-XXXX.zip
 
     sudo -u maleta /opt/maleta-occitana/.venv/bin/python \\
-        /opt/maleta-occitana/importer_contenu.py /tmp/quiz.csv /tmp/duel.csv
+        /opt/maleta-occitana/importer_contenu.py /tmp/quiz.csv /tmp/vilatges.csv
 
 Options :
     --apercu       affiche le contenu des fichiers sans rien importer
@@ -23,7 +23,7 @@ Options :
                    complete faite juste avant, dans sauvegardes/ a cote de la
                    base (par defaut : ajoute, doublons ignores)
     --sections     liste separee par des virgules (par defaut : toutes)
-                   objects,vertadier_words,duel_questions,quiz_questions,villages,media_items
+                   objects,vertadier_words,quiz_questions,villages,media_items
     --type         type de contenu des fichiers .csv, si leur nom ne le dit
                    pas (memes noms que --sections)
     --reglages     importe aussi l'apparence et les textes de la borne
@@ -71,7 +71,12 @@ def main():
     if not args.fichiers:
         parser.error("indique au moins un fichier a importer")
     sections = [s.strip() for s in args.sections.split(",") if s.strip()] or all_sections
-    unknown = [s for s in sections + ([args.type] if args.type else []) if s not in all_sections]
+    # v1.41 : sections supprimees (ex. duel_questions) : ignorees, pas une erreur.
+    ignored = [s for s in sections + ([args.type] if args.type else []) if s in content_transfer.IGNORED_SECTIONS]
+    for name in ignored:
+        print(content_transfer.IGNORED_SECTIONS[name] + ".")
+    sections = [s for s in sections if s not in content_transfer.IGNORED_SECTIONS] or all_sections
+    unknown = [s for s in sections + ([args.type] if args.type and args.type not in ignored else []) if s not in all_sections]
     if unknown:
         parser.error(f"section(s) inconnue(s) : {', '.join(unknown)} (possibles : {', '.join(all_sections)})")
 
